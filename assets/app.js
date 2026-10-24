@@ -983,24 +983,35 @@
       canListen: !!Recognition,
       canSpeak: "speechSynthesis" in window,
       speakingId: null,
-      langLabel: () => (S.prefs.voiceLang === "en-IN" ? "EN" : "हिं"),
-      switchLang() {
-        S.prefs.voiceLang = S.prefs.voiceLang === "en-IN" ? "hi-IN" : "en-IN";
+      setLang(lang) {
+        S.prefs.voiceLang = lang;
         store.set(LS.prefs, S.prefs);
-        $("#voice-lang").textContent = v.langLabel();
-        toast(S.prefs.voiceLang === "en-IN" ? "Voice: English" : "आवाज़: हिन्दी");
+        v.paintLang();
+      },
+      paintLang() {
+        document.querySelectorAll(".lang-opt").forEach((b) => b.classList.toggle("on", b.dataset.lang === S.prefs.voiceLang));
       },
       toggleListen() {
+        if (!v.canListen) {
+          const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+          toast(iOS
+            ? "iPhone/iPad पर आवाज़ से पूछना केवल Safari में चलता है — लिंक Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।"
+            : "इस ब्राउज़र में आवाज़ से पूछना नहीं चलता — Chrome या Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।", "error");
+          return;
+        }
         if (listening) { rec?.stop(); return; }
         if (S.chat.busy) return;
         v.stopSpeaking();
-        const ta = $("#chat-text"), btn = $("#mic-btn");
+        const ta = $("#chat-text"), btn = $("#mic-btn"), label = $("#mic-label");
         let finalText = "";
         rec = new Recognition();
         rec.lang = S.prefs.voiceLang;
         rec.interimResults = true;
         rec.continuous = false;
-        rec.onstart = () => { listening = true; btn.classList.add("listening"); ta.value = ""; ta.placeholder = S.prefs.voiceLang === "en-IN" ? "Listening… speak now" : "सुन रहे हैं… बोलिए"; };
+        rec.onstart = () => {
+          listening = true; btn.classList.add("listening"); ta.value = "";
+          label.textContent = S.prefs.voiceLang === "en-IN" ? "Listening… tap to stop" : "सुन रहे हैं… बोलिए (रोकने के लिए दबाएँ)";
+        };
         rec.onresult = (e) => {
           let interim = "";
           for (let k = e.resultIndex; k < e.results.length; k++) {
@@ -1017,7 +1028,7 @@
         rec.onend = () => {
           listening = false;
           btn.classList.remove("listening");
-          ta.placeholder = "अपना प्रश्न लिखें… (हिन्दी / English)";
+          label.textContent = "बोलकर पूछें · Ask by voice";
           if (ta.value.trim()) chatSend();
         };
         try { rec.start(); } catch { /* already started */ }
@@ -1071,16 +1082,21 @@
             h("button", { class: "icon-btn", title: "नई बातचीत · New conversation", onclick: chatReset }, "↺"),
             h("button", { class: "icon-btn", title: "बंद करें · Close", onclick: chatClose }, "✕"))),
         h("div", { class: "chat-log", id: "chat-log", "aria-live": "polite" }),
+        h("div", { class: "voice-bar" },
+          h("button", { class: "mic-btn", id: "mic-btn", type: "button", "aria-label": "Ask by voice", onclick: () => voice.toggleListen() },
+            h("span", { class: "mic-icon", html: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V20h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>' }),
+            h("span", { class: "mic-label", id: "mic-label" }, "बोलकर पूछें · Ask by voice")),
+          h("div", { class: "lang-switch", role: "group", "aria-label": "Voice language" },
+            h("button", { class: "lang-opt", type: "button", "data-lang": "hi-IN", onclick: () => voice.setLang("hi-IN") }, "हिन्दी"),
+            h("button", { class: "lang-opt", type: "button", "data-lang": "en-IN", onclick: () => voice.setLang("en-IN") }, "English"))),
         h("form", { class: "chat-input", onsubmit: (e) => { e.preventDefault(); chatSend(); } },
-          voice.canListen ? h("div", { class: "voice-tools" },
-            h("button", { class: "mic-btn", id: "mic-btn", type: "button", title: "बोलकर पूछें · Ask by voice", "aria-label": "Ask by voice", onclick: () => voice.toggleListen() }, "🎤"),
-            h("button", { class: "lang-btn", id: "voice-lang", type: "button", title: "बोलने की भाषा · Voice language", onclick: () => voice.switchLang() }, voice.langLabel())) : null,
           h("textarea", {
             id: "chat-text", rows: 2, placeholder: "अपना प्रश्न लिखें… (हिन्दी / English)",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
           }),
           h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "भेजें")),
         h("div", { class: "chat-remaining", id: "chat-remaining", hidden: true })));
+    voice.paintLang();
     chatRender();
   }
 
