@@ -1045,7 +1045,8 @@
       }
     } catch (e) {
       S.chat.messages.length = historyMark;
-      S.chat.view.push({ role: "error", text: `AI से जुड़ नहीं पाए (${e.message}) — तब तक गीता से सीधे उत्तर:` }, { role: "bot", text: offlineAnswer(text) });
+      console.warn("Gita Sakha AI unavailable:", e.message);
+      S.chat.view.push({ role: "tool", text: "AI अभी उपलब्ध नहीं है — गीता से सीधे उत्तर:" }, { role: "bot", text: offlineAnswer(text) });
     } finally {
       S.chat.busy = false; $("#chat-send").disabled = false;
       chatSave(); chatRender();
