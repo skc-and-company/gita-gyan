@@ -13,13 +13,16 @@
  *   CHAT_TOKEN         (secret)   same value as "Chat token" in the admin Settings
  *   ADMIN_KEY          (secret)   any long random string; lets the admin read the visitor log
  *   ALLOWED_ORIGIN     (optional) e.g. https://yourname.github.io  (default: allow any)
- *   MODEL              (optional) default claude-opus-5-5
- *   EFFORT             (optional) low | medium | high   (default medium)
- * KV binding (optional, for the visitor log):  VISITS
+ *   MODEL              (optional) default claude-haiku-5-5
+ *   EFFORT             (optional) low | medium | high   (default low)
+ *   DAILY_LIMIT        (optional) questions per reader per day (default 20; 0 = no limit).
+ *                      The admin can also change it from the site's Settings page.
+ * KV binding (optional, for the visitor log and the daily limit):  VISITS
  */
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const MAX_BODY_BYTES = 400_000;
+const DEFAULT_DAILY_LIMIT = 20;
 
 const SYSTEM_PROMPT = `You are "Gita Sakha" (गीता सखा), the study companion inside the Gita Gyan website. Readers come to you to discuss the Shrimad Bhagavad Gita in depth — a verse they are stuck on, a concept (karma, dharma, yoga, bhakti, the gunas, the Self), or a question from their own life they want to see in the Gita's light.
 
@@ -78,9 +81,11 @@ export default {
       "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "content-type, x-chat-token, x-admin-key",
+      "Access-Control-Expose-Headers": "x-questions-remaining",
       "Access-Control-Max-Age": "86400",
     };
     const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...cors, "content-type": "application/json" } });
+    const isAdmin = () => !!env.ADMIN_KEY && request.headers.get("x-admin-key") === env.ADMIN_KEY;
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const { pathname } = new URL(request.url);
@@ -92,7 +97,25 @@ export default {
         if (raw.length > MAX_BODY_BYTES) return json({ error: "Conversation is too long — please start a new one (↺)." }, 413);
         const { messages, name } = JSON.parse(raw);
         if (!Array.isArray(messages) || !messages.length || messages[0].role !== "user") return json({ error: "Bad request" }, 400);
-        return chat(env, messages, name, cors);
+
+        // Daily question limit per reader (admin is never limited). Only a new question counts —
+        // the follow-up calls Claude makes while reading verses belong to the same question.
+        let remaining = null;
+        if (env.VISITS && !isAdmin()) {
+          const limit = await dailyLimit(env);
+          if (limit > 0) {
+            const key = `q:${indiaDate()}:${await readerId(request)}`;
+            let used = Number(await env.VISITS.get(key)) || 0;
+            const isNewQuestion = typeof messages.at(-1).content === "string";
+            if (isNewQuestion) {
+              if (used >= limit) return json({ error: { type: "daily_limit", message: `Daily limit of ${limit} questions reached.` }, limit }, 429);
+              used += 1;
+              await env.VISITS.put(key, String(used), { expirationTtl: 60 * 60 * 48 });
+            }
+            remaining = Math.max(0, limit - used);
+          }
+        }
+        return chat(env, messages, name, { ...cors, ...(remaining == null ? {} : { "x-questions-remaining": String(remaining) }) });
       }
 
       if (pathname === "/visit" && request.method === "POST") {
@@ -114,6 +137,18 @@ export default {
         return json({ visits: list.keys.map((k) => k.metadata).filter(Boolean) });
       }
 
+      if (pathname === "/config") {
+        if (!isAdmin()) return json({ error: "Not authorised" }, 401);
+        if (!env.VISITS) return json({ error: "No VISITS KV namespace is bound to this worker." }, 404);
+        if (request.method === "POST") {
+          const { daily_limit } = await request.json();
+          const n = Math.floor(Number(daily_limit));
+          if (!(n >= 0 && n <= 1000)) return json({ error: "daily_limit must be a number from 0 to 1000" }, 400);
+          await env.VISITS.put("cfg:daily_limit", String(n));
+        }
+        return json({ daily_limit: await dailyLimit(env) });
+      }
+
       if (pathname === "/" || pathname === "/health") return json({ ok: true, service: "gita-sakha" });
       return json({ error: "Not found" }, 404);
     } catch (e) {
@@ -122,8 +157,26 @@ export default {
   },
 };
 
+async function dailyLimit(env) {
+  const saved = env.VISITS ? await env.VISITS.get("cfg:daily_limit") : null;
+  const n = Number(saved ?? env.DAILY_LIMIT ?? DEFAULT_DAILY_LIMIT);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DAILY_LIMIT;
+}
+
+// The day rolls over at midnight India time.
+function indiaDate() {
+  return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+// A reader is identified by a hash of their IP address, so the raw address is never stored.
+async function readerId(request) {
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`gita-sakha:${ip}`));
+  return [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function chat(env, messages, name, cors) {
-  const model = env.MODEL || "claude-opus-5-5";
+  const model = env.MODEL || "claude-haiku-5-5";
   const system = [{ type: "text", text: SYSTEM_PROMPT }];
   const reader = String(name || "").replace(/[^\p{L}\p{M}\p{N} .'-]/gu, "").slice(0, 40).trim();
   if (reader) system.push({ type: "text", text: `The reader's name is ${reader}.` });
@@ -135,7 +188,7 @@ async function chat(env, messages, name, cors) {
     system,
     tools: TOOLS,
     messages,
-    output_config: { effort: env.EFFORT || "medium" },
+    output_config: { effort: env.EFFORT || "low" },
     cache_control: { type: "ephemeral" },
   };
   const headers = {
@@ -144,6 +197,7 @@ async function chat(env, messages, name, cors) {
     "anthropic-version": "2026-10-21",
   };
   // Server-side fallback: if the model's safety classifier declines, Anthropic retries on its recommended model.
+  // (Not available for Haiku 5.5 — a declined request there stays declined and the site shows a polite message.)
   if (/^claude-(opus|sonnet|fable)/.test(model)) {
     body.fallbacks = "default";
     headers["anthropic-beta"] = "server-side-fallback-2026-07-01";
