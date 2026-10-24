@@ -16,7 +16,7 @@
   const S = {
     config: null, enc: null, content: null, password: "", name: "",
     pendingPassword: null, dirty: false, editing: null,
-    prefs: { sa: true, tr: true, hi: true, en: true, scale: 1, theme: "light" },
+    prefs: { sa: true, tr: true, hi: true, en: true, scale: 1, theme: "light", voiceLang: "hi-IN" },
     chat: { messages: [], view: [], busy: false, open: false },
   };
 
@@ -974,6 +974,91 @@
     get_chapter: `📜 अध्याय ${input.chapter} देख रहे हैं`,
   }[name] || name);
 
+  /* Voice: ask by speaking (Web Speech API) and hear answers read aloud (speechSynthesis).
+   * Both run in the reader's browser, so they cost nothing; unsupported browsers just don't show the buttons. */
+  const voice = (() => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let rec = null, listening = false;
+    const v = {
+      canListen: !!Recognition,
+      canSpeak: "speechSynthesis" in window,
+      speakingId: null,
+      langLabel: () => (S.prefs.voiceLang === "en-IN" ? "EN" : "हिं"),
+      switchLang() {
+        S.prefs.voiceLang = S.prefs.voiceLang === "en-IN" ? "hi-IN" : "en-IN";
+        store.set(LS.prefs, S.prefs);
+        $("#voice-lang").textContent = v.langLabel();
+        toast(S.prefs.voiceLang === "en-IN" ? "Voice: English" : "आवाज़: हिन्दी");
+      },
+      toggleListen() {
+        if (listening) { rec?.stop(); return; }
+        if (S.chat.busy) return;
+        v.stopSpeaking();
+        const ta = $("#chat-text"), btn = $("#mic-btn");
+        let finalText = "";
+        rec = new Recognition();
+        rec.lang = S.prefs.voiceLang;
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.onstart = () => { listening = true; btn.classList.add("listening"); ta.value = ""; ta.placeholder = S.prefs.voiceLang === "en-IN" ? "Listening… speak now" : "सुन रहे हैं… बोलिए"; };
+        rec.onresult = (e) => {
+          let interim = "";
+          for (let k = e.resultIndex; k < e.results.length; k++) {
+            if (e.results[k].isFinal) finalText += e.results[k][0].transcript;
+            else interim += e.results[k][0].transcript;
+          }
+          ta.value = (finalText + interim).trim();
+        };
+        rec.onerror = (e) => {
+          if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("माइक की अनुमति दें · Please allow microphone access in your browser.", "error");
+          else if (e.error === "no-speech") toast("कुछ सुनाई नहीं दिया — फिर से बोलें · Didn't hear anything.");
+          else if (e.error !== "aborted") toast(`Voice error: ${e.error}`, "error");
+        };
+        rec.onend = () => {
+          listening = false;
+          btn.classList.remove("listening");
+          ta.placeholder = "अपना प्रश्न लिखें… (हिन्दी / English)";
+          if (ta.value.trim()) chatSend();
+        };
+        try { rec.start(); } catch { /* already started */ }
+      },
+      toggleSpeak(id, html) {
+        if (v.speakingId === id) { v.stopSpeaking(); return; }
+        v.stopSpeaking();
+        const div = document.createElement("div");
+        div.innerHTML = html;
+        const text = div.textContent.replace(/\s+/g, " ").trim();
+        // Each sentence goes to the Hindi or English voice by its script; neighbours in the same language are joined
+        // (short pieces also avoid browsers cutting long utterances off part-way).
+        const scriptOf = (t) => ((t.match(/[ऀ-ॿ]/g) || []).length >= (t.match(/[A-Za-z]/g) || []).length ? "hi-IN" : "en-IN");
+        const parts = text.split(/(?<=[।॥.!?:])\s+|(?=English:)/).filter((p) => p.trim());
+        const chunks = [];
+        for (const p of parts) {
+          const last = chunks[chunks.length - 1], lang = scriptOf(p);
+          if (last && last.lang === lang && (last.text + p).length < 220) last.text += " " + p;
+          else chunks.push({ lang, text: p });
+        }
+        const voices = speechSynthesis.getVoices();
+        v.speakingId = id;
+        chunks.forEach(({ lang, text: c }, n) => {
+          const u = new SpeechSynthesisUtterance(c.trim());
+          u.lang = lang;
+          u.voice = voices.find((x) => x.lang === lang) || voices.find((x) => x.lang.startsWith(lang.slice(0, 2))) || null;
+          u.rate = 0.95;
+          if (n === chunks.length - 1) u.onend = () => { if (v.speakingId === id) { v.speakingId = null; chatRender(); } };
+          speechSynthesis.speak(u);
+        });
+        chatRender();
+      },
+      stopSpeaking() {
+        if (v.canSpeak) speechSynthesis.cancel();
+        if (v.speakingId != null) { v.speakingId = null; chatRender(); }
+      },
+    };
+    if (v.canSpeak) speechSynthesis.getVoices(); // starts loading the voice list
+    return v;
+  })();
+
   function chatMount() {
     const saved = session.get("gg-chat");
     if (saved) { S.chat.messages = saved.messages || []; S.chat.view = saved.view || []; }
@@ -987,6 +1072,9 @@
             h("button", { class: "icon-btn", title: "बंद करें · Close", onclick: chatClose }, "✕"))),
         h("div", { class: "chat-log", id: "chat-log", "aria-live": "polite" }),
         h("form", { class: "chat-input", onsubmit: (e) => { e.preventDefault(); chatSend(); } },
+          voice.canListen ? h("div", { class: "voice-tools" },
+            h("button", { class: "mic-btn", id: "mic-btn", type: "button", title: "बोलकर पूछें · Ask by voice", "aria-label": "Ask by voice", onclick: () => voice.toggleListen() }, "🎤"),
+            h("button", { class: "lang-btn", id: "voice-lang", type: "button", title: "बोलने की भाषा · Voice language", onclick: () => voice.switchLang() }, voice.langLabel())) : null,
           h("textarea", {
             id: "chat-text", rows: 2, placeholder: "अपना प्रश्न लिखें… (हिन्दी / English)",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
@@ -1004,9 +1092,10 @@
     if (prefill) ta.value = prefill;
     ta.focus();
   }
-  function chatClose() { $("#chat").hidden = true; $("#chat-fab").hidden = false; S.chat.open = false; }
+  function chatClose() { voice.stopSpeaking(); $("#chat").hidden = true; $("#chat-fab").hidden = false; S.chat.open = false; }
   function chatReset() {
     if (S.chat.busy) return;
+    voice.stopSpeaking();
     S.chat.messages = []; S.chat.view = [];
     chatSave(); chatRender();
   }
@@ -1028,11 +1117,17 @@
         h("div", { class: "ideas" }, ideas.map((q) => h("button", { class: "chip", onclick: () => { $("#chat-text").value = q; chatSend(); } }, q)))));
       return;
     }
-    log.replaceChildren(...S.chat.view.map((m) => {
+    log.replaceChildren(...S.chat.view.map((m, i) => {
       if (m.role === "user") return h("div", { class: "msg user" }, m.text);
       if (m.role === "tool") return h("div", { class: "msg tool" }, m.text);
       if (m.role === "error") return h("div", { class: "msg error" }, m.text);
-      return h("div", { class: "msg bot prose", html: md(m.text, { linkRefs: true }) || "<span class='typing'>…</span>" });
+      const html = md(m.text, { linkRefs: true });
+      return h("div", { class: "msg bot" },
+        h("div", { class: "prose", html: html || "<span class='typing'>…</span>" }),
+        html && voice.canSpeak ? h("button", {
+          class: `speak-btn ${voice.speakingId === i ? "on" : ""}`, type: "button",
+          title: "सुनें · Read aloud", onclick: () => voice.toggleSpeak(i, html),
+        }, voice.speakingId === i ? "⏹ रोकें" : "🔊 सुनें") : null);
     }));
     log.scrollTop = log.scrollHeight;
   }

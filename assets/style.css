@@ -244,6 +244,15 @@ mark { background: var(--accent-soft); color: inherit; padding: 0 .1em; border-r
 .chat-input { display: flex; gap: .5rem; padding: .7rem; border-top: 1px solid var(--line); align-items: flex-end; }
 .chat-input textarea { flex: 1; resize: none; font: inherit; font-size: .97rem; padding: .55rem .7rem; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-height: 140px; }
 .chat-input textarea:focus { outline: 2px solid var(--accent); }
+.voice-tools { display: flex; flex-direction: column; gap: .3rem; align-items: center; }
+.mic-btn { width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 1.2rem; line-height: 1; }
+.mic-btn:hover { border-color: var(--accent); }
+.mic-btn.listening { background: var(--accent); border-color: var(--accent); animation: mic-pulse 1.2s ease-in-out infinite; }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 73, 15, .45); } 50% { box-shadow: 0 0 0 8px rgba(180, 73, 15, 0); } }
+.lang-btn { border: 0; background: transparent; color: var(--muted); font-size: .72rem; cursor: pointer; padding: 0; }
+.lang-btn:hover { color: var(--accent); }
+.speak-btn { display: inline-block; margin-top: .45rem; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); border-radius: 999px; font-size: .78rem; padding: .15rem .65rem; cursor: pointer; }
+.speak-btn:hover, .speak-btn.on { border-color: var(--accent); color: var(--accent); }
 .chat-remaining { font-size: .75rem; color: var(--muted); text-align: center; padding: 0 .7rem .5rem; margin-top: -.3rem; }
 
 @media (max-width: 640px) {
