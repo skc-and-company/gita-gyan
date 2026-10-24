@@ -18,16 +18,21 @@
  *   DAILY_LIMIT        (optional) questions per reader per day (default 20; 0 = no limit).
  *                      The admin can also change it from the site's Settings page.
  * KV binding (optional, for the visitor log and the daily limit):  VISITS
+ * Workers AI binding (for voice questions — speech-to-text with automatic language detection):  AI
  */
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const MAX_BODY_BYTES = 400_000;
 const DEFAULT_DAILY_LIMIT = 20;
+const STT_MODEL = "@cf/openai/whisper-large-v3-turbo";
+const MAX_AUDIO_BYTES = 2_500_000;    // ~75 s of 16 kHz mono WAV
+const DAILY_VOICE_LIMIT = 60;         // voice clips per reader per day
+const INDIAN_LANGS = ["bn", "te", "kn", "ml", "ta", "gu", "pa", "or", "ur", "mr", "as", "ne"];
 
 const SYSTEM_PROMPT = `You are "Gita Sakha" (गीता सखा), the study companion inside the Gita Gyan website. Readers come to you to discuss the Shrimad Bhagavad Gita in depth — a verse they are stuck on, a concept (karma, dharma, yoga, bhakti, the gunas, the Self), or a question from their own life they want to see in the Gita's light.
 
 How to help:
-- Reply in the reader's language and script: Hindi in Devanagari, Hinglish if they write Hinglish, English if they write English.
+- Always reply in the same language and script the reader writes or speaks in: Hindi, English, Hinglish, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Punjabi, Odia, Urdu, Nepali or any other. The site's texts are Sanskrit, Hindi and English, so translate what you quote into the reader's language when it differs (keep the Sanskrit verse itself as it is). Questions may arrive by voice, so read past small transcription mistakes — and sometimes speech in Bengali, Telugu, Kannada, Gujarati, Punjabi, Odia, Malayalam or another language is written out phonetically in Devanagari (for example "अमार मोन खुब आश्थिर" is Bengali). Work out the language the reader actually spoke from the words and reply in that language's own script.
 - Ground what you say in the text. Use the tools to read the exact verses from this website before quoting them, and cite verses as chapter.verse (for example 2.47) so the site can link them. When you quote a translation, use the site's Hindi bhavarth or Purohit Swami's English as returned by the tools, and say which one it is.
 - Go deep when asked: word meanings (padaccheda/anvaya), the context in the dialogue, how the verse connects to neighbouring verses and other chapters, and practical application in daily life.
 - Where the great commentators genuinely differ (for example Shankaracharya's Advaita, Ramanujacharya's Vishishtadvaita, Madhvacharya's Dvaita, or modern readings such as Tilak, Gandhi, Vinoba, Aurobindo), present the views fairly rather than declaring one correct.
@@ -53,7 +58,7 @@ const TOOLS = [
   },
   {
     name: "search_gita",
-    description: "Keyword search across the site's Hindi, English, transliteration and Sanskrit text. Returns up to 12 matching verse references with short snippets. Use it to find where a theme or word appears, then read the full verses with get_shlokas.",
+    description: "Keyword search across the site's Hindi, English, transliteration and Sanskrit text. Returns up to 12 matching verse references with short snippets. Use it to find where a theme or word appears, then read the full verses with get_shlokas. Search with Hindi or English words (translate keywords from other languages first).",
     input_schema: {
       type: "object",
       properties: { query: { type: "string", description: "Words to search for, in Hindi, English or transliteration" } },
@@ -80,7 +85,7 @@ export default {
     const cors = {
       "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "content-type, x-chat-token, x-admin-key",
+      "Access-Control-Allow-Headers": "content-type, x-chat-token, x-admin-key, x-lang-hint",
       "Access-Control-Expose-Headers": "x-questions-remaining",
       "Access-Control-Max-Age": "86400",
     };
@@ -116,6 +121,35 @@ export default {
           }
         }
         return chat(env, messages, name, { ...cors, ...(remaining == null ? {} : { "x-questions-remaining": String(remaining) }) });
+      }
+
+      // Voice question → text. Whisper detects the spoken language by itself, so readers never pick one.
+      if (pathname === "/transcribe" && request.method === "POST") {
+        if (!env.CHAT_TOKEN || request.headers.get("x-chat-token") !== env.CHAT_TOKEN) return json({ error: "Not authorised" }, 401);
+        if (!env.AI) return json({ error: "Voice isn't switched on yet (no Workers AI binding named AI)." }, 503);
+        const audio = await request.arrayBuffer();
+        if (!audio.byteLength) return json({ error: "Empty recording" }, 400);
+        if (audio.byteLength > MAX_AUDIO_BYTES) return json({ error: "Recording is too long — please keep it under a minute." }, 413);
+        if (env.VISITS && !isAdmin()) {
+          const key = `t:${indiaDate()}:${await readerId(request)}`;
+          const used = Number(await env.VISITS.get(key)) || 0;
+          if (used >= DAILY_VOICE_LIMIT) return json({ error: { type: "daily_limit" } }, 429);
+          await env.VISITS.put(key, String(used + 1), { expirationTtl: 60 * 60 * 48 });
+        }
+        const b64 = toBase64(audio);
+        const transcribe = (language) => env.AI.run(STT_MODEL, { audio: b64, vad_filter: true, condition_on_previous_text: false, ...(language ? { language } : {}) });
+        let out = await transcribe();
+        let language = out?.transcription_info?.language || null;
+        // Whisper can mistake Bengali, Telugu, Kannada… for Hindi. If the reader's phone is set to one of those
+        // languages, trust that and transcribe again in it (still no choice for the reader to make).
+        const hint = (request.headers.get("x-lang-hint") || "").split(",").map((l) => l.trim().slice(0, 2).toLowerCase())
+          .find((c) => INDIAN_LANGS.includes(c));
+        if (hint && hint !== language && ["hi", "mr", "ne"].includes(language)) {
+          out = await transcribe(hint);
+          language = hint;
+        }
+        const text = String(out?.text ?? out?.transcription_info?.text ?? "").trim();
+        return json({ text, language });
       }
 
       if (pathname === "/visit" && request.method === "POST") {
@@ -156,6 +190,13 @@ export default {
     }
   },
 };
+
+function toBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
 
 async function dailyLimit(env) {
   const saved = env.VISITS ? await env.VISITS.get("cfg:daily_limit") : null;
