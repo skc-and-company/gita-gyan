@@ -244,6 +244,7 @@ mark { background: var(--accent-soft); color: inherit; padding: 0 .1em; border-r
 .chat-input { display: flex; gap: .5rem; padding: .7rem; border-top: 1px solid var(--line); align-items: flex-end; }
 .chat-input textarea { flex: 1; resize: none; font: inherit; font-size: .97rem; padding: .55rem .7rem; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-height: 140px; }
 .chat-input textarea:focus { outline: 2px solid var(--accent); }
+.chat-remaining { font-size: .75rem; color: var(--muted); text-align: center; padding: 0 .7rem .5rem; margin-top: -.3rem; }
 
 @media (max-width: 640px) {
   .main-nav { display: none; }

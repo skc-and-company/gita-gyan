@@ -855,6 +855,31 @@
         h("button", { class: "btn primary" }, "Save"),
         h("button", { class: "btn", type: "button", onclick: (e) => { e.target.closest("form").chatToken.value = bytesToB64(crypto.getRandomValues(new Uint8Array(24))).replace(/[+/=]/g, ""); } }, "Generate new token")));
 
+    const limitInput = h("input", { type: "number", min: 0, max: 1000, name: "limit", placeholder: "…" });
+    const limitForm = h("form", {
+      class: "stack",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        try {
+          const res = await fetch(`${cfg.chatUrl}/config`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-admin-key": store.get(LS.adminKey, "") },
+            body: JSON.stringify({ daily_limit: Number(limitInput.value) }),
+          });
+          const out = await res.json();
+          if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+          limitInput.value = out.daily_limit;
+          toast(out.daily_limit ? `✓ Each reader can now ask ${out.daily_limit} questions a day.` : "✓ No daily limit.");
+        } catch (err) { toast(`Couldn't save the limit — ${err.message}`, "error"); }
+      },
+    },
+      h("label", { class: "field" }, h("span", null, "Questions per reader per day (0 = no limit). Admin is never limited; it resets at midnight India time."), limitInput),
+      h("button", { class: "btn primary", disabled: !cfg.chatUrl }, "Save limit"));
+    if (cfg.chatUrl && store.get(LS.adminKey)) {
+      fetch(`${cfg.chatUrl}/config`, { headers: { "x-admin-key": store.get(LS.adminKey) } })
+        .then((r) => r.json()).then((d) => { if (d.daily_limit != null) limitInput.value = d.daily_limit; }).catch(() => {});
+    }
+
     const visitors = h("div", { class: "visitors" }, h("p", { class: "muted" }, "Shows who logged in (needs the worker with a VISITS store)."));
     const loadVisitors = async () => {
       visitors.replaceChildren(h("p", { class: "muted" }, "Loading…"));
@@ -892,8 +917,11 @@
       section("4 · Gita Sakha (AI agent)",
         h("p", { class: "muted" }, "Needs the free Cloudflare Worker from the worker/ folder (see README)."),
         chatForm),
-      section("5 · Visitor log", visitors, h("button", { class: "btn", onclick: loadVisitors, disabled: !cfg.chatUrl }, "Load visitor log")),
-      section("6 · Backup",
+      section("5 · Gita Sakha daily limit",
+        h("p", { class: "muted" }, "Keeps your Claude cost in check. Needs the Worker admin key saved in section 4."),
+        limitForm),
+      section("6 · Visitor log", visitors, h("button", { class: "btn", onclick: loadVisitors, disabled: !cfg.chatUrl }, "Load visitor log")),
+      section("7 · Backup",
         h("p", { class: "muted" }, "Download everything as a plain JSON file (keep it private — it's unencrypted), or restore from one."),
         h("div", { class: "edit-actions" },
           h("button", { class: "btn", onclick: () => downloadJson(S.content, `gita-gyan-backup-${new Date().toISOString().slice(0, 10)}.json`) }, "⬇ Download backup"),
@@ -963,7 +991,8 @@
             id: "chat-text", rows: 2, placeholder: "अपना प्रश्न लिखें… (हिन्दी / English)",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
           }),
-          h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "भेजें"))));
+          h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "भेजें")),
+        h("div", { class: "chat-remaining", id: "chat-remaining", hidden: true })));
     chatRender();
   }
 
@@ -986,6 +1015,11 @@
   function chatRender() {
     const log = $("#chat-log");
     if (!log) return;
+    const left = $("#chat-remaining");
+    if (left) {
+      left.hidden = ADMIN || S.chat.remaining == null;
+      left.textContent = `आज शेष प्रश्न: ${S.chat.remaining} · Questions left today`;
+    }
     if (!S.chat.view.length) {
       const ideas = ["कर्मयोग क्या है? सरल भाषा में समझाइए।", "मन बहुत चंचल है — गीता इसे वश में करने के क्या उपाय बताती है?", "Explain 2.47 in depth with examples from daily life.", "स्थितप्रज्ञ के लक्षण क्या हैं?"];
       log.replaceChildren(h("div", { class: "chat-welcome" },
@@ -1046,7 +1080,12 @@
     } catch (e) {
       S.chat.messages.length = historyMark;
       console.warn("Gita Sakha AI unavailable:", e.message);
-      S.chat.view.push({ role: "tool", text: "AI अभी उपलब्ध नहीं है — गीता से सीधे उत्तर:" }, { role: "bot", text: offlineAnswer(text) });
+      S.chat.view = S.chat.view.filter((m) => !(m.role === "bot" && !m.text)); // drop the empty "typing" bubble
+      const note = e.dailyLimit
+        ? `आज के प्रश्नों की सीमा${typeof e.dailyLimit === "number" ? ` (${e.dailyLimit})` : ""} पूरी हो गई — कल फिर पूछें। तब तक गीता से सीधे उत्तर:`
+        : "AI अभी उपलब्ध नहीं है — गीता से सीधे उत्तर:";
+      if (e.dailyLimit) S.chat.remaining = 0;
+      S.chat.view.push({ role: "tool", text: note }, { role: "bot", text: offlineAnswer(text) });
     } finally {
       S.chat.busy = false; $("#chat-send").disabled = false;
       chatSave(); chatRender();
@@ -1129,9 +1168,18 @@
   async function streamTurn(onText) {
     const res = await fetch(`${S.config.chatUrl}/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-chat-token": S.content.chat?.token || "" },
+      headers: {
+        "content-type": "application/json", "x-chat-token": S.content.chat?.token || "",
+        ...(ADMIN && store.get(LS.adminKey) ? { "x-admin-key": store.get(LS.adminKey) } : {}),
+      },
       body: JSON.stringify({ messages: S.chat.messages, name: S.name }),
     });
+    const remaining = res.headers.get("x-questions-remaining");
+    if (remaining != null) S.chat.remaining = Number(remaining);
+    if (res.status === 429) {
+      const body = await res.json().catch(() => ({}));
+      throw Object.assign(new Error("daily limit reached"), { dailyLimit: body.limit || true });
+    }
     if (!res.ok || !res.body) {
       const body = await res.text().catch(() => "");
       let msg = body;
