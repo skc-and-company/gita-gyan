@@ -251,9 +251,8 @@ mark { background: var(--accent-soft); color: inherit; padding: 0 .1em; border-r
 .mic-icon { display: inline-flex; }
 .mic-btn.listening { background: var(--accent); color: #fff; animation: mic-pulse 1.2s ease-in-out infinite; }
 @keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 73, 15, .45); } 50% { box-shadow: 0 0 0 8px rgba(180, 73, 15, 0); } }
-.lang-switch { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
-.lang-opt { border: 0; background: var(--card); color: var(--muted); font: inherit; font-size: .78rem; padding: .45rem .65rem; cursor: pointer; }
-.lang-opt.on { background: var(--accent-soft); color: var(--maroon); font-weight: 600; }
+.mic-btn.listening { box-shadow: 0 0 0 calc(var(--level, 0) * 10px) rgba(180, 73, 15, .35); animation: none; }
+.mic-btn.working { opacity: .85; cursor: progress; background: var(--accent-soft); color: var(--maroon); }
 .speak-btn { display: inline-block; margin-top: .45rem; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); border-radius: 999px; font-size: .78rem; padding: .15rem .65rem; cursor: pointer; }
 .speak-btn:hover, .speak-btn.on { border-color: var(--accent); color: var(--accent); }
 .chat-remaining { font-size: .75rem; color: var(--muted); text-align: center; padding: 0 .7rem .5rem; margin-top: -.3rem; }

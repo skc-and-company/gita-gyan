@@ -16,7 +16,7 @@
   const S = {
     config: null, enc: null, content: null, password: "", name: "",
     pendingPassword: null, dirty: false, editing: null,
-    prefs: { sa: true, tr: true, hi: true, en: true, scale: 1, theme: "light", voiceLang: "hi-IN" },
+    prefs: { sa: true, tr: true, hi: true, en: true, scale: 1, theme: "light" },
     chat: { messages: [], view: [], busy: false, open: false },
   };
 
@@ -974,64 +974,134 @@
     get_chapter: `📜 अध्याय ${input.chapter} देख रहे हैं`,
   }[name] || name);
 
-  /* Voice: ask by speaking (Web Speech API) and hear answers read aloud (speechSynthesis).
-   * Both run in the reader's browser, so they cost nothing; unsupported browsers just don't show the buttons. */
+  /* Voice: ask by speaking and hear answers read aloud.
+   * Asking records a short clip, which the worker turns into text with Whisper (it detects the language itself);
+   * reading aloud uses the browser's own voices. */
   const voice = (() => {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let rec = null, listening = false;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    // Read-aloud picks a voice from the script of each sentence.
+    const SCRIPTS = [
+      [/[ঀ-৿]/g, "bn-IN"], [/[઀-૿]/g, "gu-IN"], [/[਀-੿]/g, "pa-IN"], [/[଀-୿]/g, "or-IN"],
+      [/[஀-௿]/g, "ta-IN"], [/[ఀ-౿]/g, "te-IN"], [/[ಀ-೿]/g, "kn-IN"], [/[ഀ-ൿ]/g, "ml-IN"],
+      [/[؀-ۿ]/g, "ur-IN"], [/[ऀ-ॿ]/g, "deva"], [/[A-Za-z]/g, "en-IN"],
+    ];
+    // Whisper reports languages as names or codes; these are the Devanagari ones that aren't Hindi.
+    const DEVA_LANGS = { marathi: "mr-IN", mr: "mr-IN", nepali: "ne-NP", ne: "ne-NP" };
+    let lastSpoken = null;   // language Whisper heard last, used to pick a Devanagari voice
+    const langOfText = (t) => {
+      let best = "en-IN", most = 0;
+      for (const [re, lang] of SCRIPTS) { const n = (t.match(re) || []).length; if (n > most) { most = n; best = lang; } }
+      if (best === "deva") best = DEVA_LANGS[String(lastSpoken || "").toLowerCase()] || "hi-IN";
+      return best;
+    };
+
+    // 16 kHz mono WAV: one format every speech model accepts, whatever the phone recorded.
+    async function toWav16k(blob) {
+      const decodeCtx = new Ctx();
+      const decoded = await decodeCtx.decodeAudioData(await blob.arrayBuffer());
+      decodeCtx.close();
+      const rate = 16000;
+      const offline = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
+      const src = offline.createBufferSource();
+      src.buffer = decoded; src.connect(offline.destination); src.start();
+      const pcm = (await offline.startRendering()).getChannelData(0);
+      const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+      const str = (o, t) => [...t].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+      str(0, "RIFF"); out.setUint32(4, 36 + pcm.length * 2, true); str(8, "WAVE"); str(12, "fmt ");
+      out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+      out.setUint32(24, rate, true); out.setUint32(28, rate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+      str(36, "data"); out.setUint32(40, pcm.length * 2, true);
+      for (let i = 0; i < pcm.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+      return new Blob([out], { type: "audio/wav" });
+    }
+
+    let session = null;   // the recording in progress
     const v = {
-      canListen: !!Recognition,
+      canListen: !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder && Ctx),
       canSpeak: "speechSynthesis" in window,
       speakingId: null,
-      setLang(lang) {
-        S.prefs.voiceLang = lang;
-        store.set(LS.prefs, S.prefs);
-        v.paintLang();
-      },
-      paintLang() {
-        document.querySelectorAll(".lang-opt").forEach((b) => b.classList.toggle("on", b.dataset.lang === S.prefs.voiceLang));
-      },
-      toggleListen() {
+      async toggleListen() {
+        if (session) { session.stop("tap"); return; }
         if (!v.canListen) {
-          const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-          toast(iOS
-            ? "iPhone/iPad पर आवाज़ से पूछना केवल Safari में चलता है — लिंक Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।"
-            : "इस ब्राउज़र में आवाज़ से पूछना नहीं चलता — Chrome या Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।", "error");
+          toast("इस ब्राउज़र में आवाज़ रिकॉर्ड नहीं होती — Chrome या Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।", "error");
           return;
         }
-        if (listening) { rec?.stop(); return; }
+        if (!S.config.chatUrl) { toast("आवाज़ से पूछना AI जुड़ने के बाद चलेगा · Voice needs the AI agent to be set up.", "error"); return; }
         if (S.chat.busy) return;
         v.stopSpeaking();
-        const ta = $("#chat-text"), btn = $("#mic-btn"), label = $("#mic-label");
-        let finalText = "";
-        rec = new Recognition();
-        rec.lang = S.prefs.voiceLang;
-        rec.interimResults = true;
-        rec.continuous = false;
-        rec.onstart = () => {
-          listening = true; btn.classList.add("listening"); ta.value = "";
-          label.textContent = S.prefs.voiceLang === "en-IN" ? "Listening… tap to stop" : "सुन रहे हैं… बोलिए (रोकने के लिए दबाएँ)";
+        const btn = $("#mic-btn"), label = $("#mic-label");
+        const idle = "बोलकर पूछें · Ask by voice";
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        } catch (e) {
+          toast(e.name === "NotFoundError" ? "माइक नहीं मिला · No microphone found." : "माइक की अनुमति दें — ब्राउज़र में Allow करें · Please allow the microphone.", "error");
+          return;
+        }
+        const recorder = new MediaRecorder(stream);
+        const chunks = [];
+        recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        // Listen to the level to know when the reader starts and stops speaking.
+        const ctx = new Ctx();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        const buf = new Float32Array(analyser.fftSize);
+        const started = performance.now();
+        let floor = null, spoke = false, lastVoice = 0, why = null;
+        const tick = setInterval(() => {
+          analyser.getFloatTimeDomainData(buf);
+          const rms = Math.sqrt(buf.reduce((a, x) => a + x * x, 0) / buf.length);
+          const t = performance.now() - started;
+          if (t < 400) { floor = Math.max(floor || 0, rms); return; }          // learn the room noise
+          const loud = rms > Math.max(0.015, (floor || 0) * 2.5);
+          btn.style.setProperty("--level", Math.min(1, rms * 12).toFixed(2));
+          if (loud) { spoke = true; lastVoice = t; }
+          if (spoke && t - lastVoice > 1800) session.stop("silence");          // finished speaking
+          else if (!spoke && t > 8000) session.stop("nothing");               // never spoke
+          else if (t > 45000) session.stop("max");                            // safety cap
+        }, 100);
+        session = {
+          stop(reason) { if (why) return; why = reason; clearInterval(tick); if (recorder.state !== "inactive") recorder.stop(); },
         };
-        rec.onresult = (e) => {
-          let interim = "";
-          for (let k = e.resultIndex; k < e.results.length; k++) {
-            if (e.results[k].isFinal) finalText += e.results[k][0].transcript;
-            else interim += e.results[k][0].transcript;
-          }
-          ta.value = (finalText + interim).trim();
-        };
-        rec.onerror = (e) => {
-          if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("माइक की अनुमति दें · Please allow microphone access in your browser.", "error");
-          else if (e.error === "no-speech") toast("कुछ सुनाई नहीं दिया — फिर से बोलें · Didn't hear anything.");
-          else if (e.error !== "aborted") toast(`Voice error: ${e.error}`, "error");
-        };
-        rec.onend = () => {
-          listening = false;
+        recorder.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          ctx.close();
+          session = null;
           btn.classList.remove("listening");
-          label.textContent = "बोलकर पूछें · Ask by voice";
-          if (ta.value.trim()) chatSend();
+          btn.style.removeProperty("--level");
+          if (!spoke) { label.textContent = idle; toast("कुछ सुनाई नहीं दिया — माइक के पास बोलें · Didn't hear anything, please try again."); return; }
+          btn.classList.add("working"); btn.disabled = true;
+          label.textContent = "समझ रहे हैं… · Understanding…";
+          try {
+            const wav = await toWav16k(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+            const res = await fetch(`${S.config.chatUrl}/transcribe`, {
+              method: "POST",
+              headers: {
+                "content-type": "audio/wav", "x-chat-token": S.content.chat?.token || "",
+                "x-lang-hint": (navigator.languages || [navigator.language]).join(","),
+                ...(ADMIN && store.get(LS.adminKey) ? { "x-admin-key": store.get(LS.adminKey) } : {}),
+              },
+              body: wav,
+            });
+            const out = await res.json().catch(() => ({}));
+            if (res.status === 429) throw new Error("आज की आवाज़ सीमा पूरी हो गई — लिखकर पूछें · Today's voice limit is used up, please type.");
+            if (!res.ok) throw new Error(typeof out.error === "string" ? out.error : `HTTP ${res.status}`);
+            if (!out.text) throw new Error("आवाज़ साफ़ समझ नहीं आई — फिर से बोलें · Couldn't make that out, please try again.");
+            lastSpoken = out.language;
+            const ta = $("#chat-text");
+            ta.value = out.text;
+            chatSend();
+          } catch (e) {
+            toast(e.message, "error");
+          } finally {
+            btn.classList.remove("working"); btn.disabled = false;
+            label.textContent = idle;
+          }
         };
-        try { rec.start(); } catch { /* already started */ }
+        recorder.start(250);
+        btn.classList.add("listening");
+        label.textContent = "सुन रहे हैं… बोलिए · Listening, speak now";
       },
       toggleSpeak(id, html) {
         if (v.speakingId === id) { v.stopSpeaking(); return; }
@@ -1039,13 +1109,12 @@
         const div = document.createElement("div");
         div.innerHTML = html;
         const text = div.textContent.replace(/\s+/g, " ").trim();
-        // Each sentence goes to the Hindi or English voice by its script; neighbours in the same language are joined
+        // Each sentence goes to the voice for its script; neighbours in the same language are joined
         // (short pieces also avoid browsers cutting long utterances off part-way).
-        const scriptOf = (t) => ((t.match(/[ऀ-ॿ]/g) || []).length >= (t.match(/[A-Za-z]/g) || []).length ? "hi-IN" : "en-IN");
         const parts = text.split(/(?<=[।॥.!?:])\s+|(?=English:)/).filter((p) => p.trim());
         const chunks = [];
         for (const p of parts) {
-          const last = chunks[chunks.length - 1], lang = scriptOf(p);
+          const last = chunks[chunks.length - 1], lang = langOfText(p);
           if (last && last.lang === lang && (last.text + p).length < 220) last.text += " " + p;
           else chunks.push({ lang, text: p });
         }
@@ -1085,18 +1154,14 @@
         h("div", { class: "voice-bar" },
           h("button", { class: "mic-btn", id: "mic-btn", type: "button", "aria-label": "Ask by voice", onclick: () => voice.toggleListen() },
             h("span", { class: "mic-icon", html: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V20h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>' }),
-            h("span", { class: "mic-label", id: "mic-label" }, "बोलकर पूछें · Ask by voice")),
-          h("div", { class: "lang-switch", role: "group", "aria-label": "Voice language" },
-            h("button", { class: "lang-opt", type: "button", "data-lang": "hi-IN", onclick: () => voice.setLang("hi-IN") }, "हिन्दी"),
-            h("button", { class: "lang-opt", type: "button", "data-lang": "en-IN", onclick: () => voice.setLang("en-IN") }, "English"))),
+            h("span", { class: "mic-label", id: "mic-label" }, "बोलकर पूछें · Ask by voice"))),
         h("form", { class: "chat-input", onsubmit: (e) => { e.preventDefault(); chatSend(); } },
           h("textarea", {
-            id: "chat-text", rows: 2, placeholder: "अपना प्रश्न लिखें… (हिन्दी / English)",
+            id: "chat-text", rows: 2, placeholder: "प्रश्न लिखें या बोलें — किसी भी भाषा में · Type or speak in any language",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
           }),
           h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "भेजें")),
         h("div", { class: "chat-remaining", id: "chat-remaining", hidden: true })));
-    voice.paintLang();
     chatRender();
   }
 
@@ -1130,6 +1195,7 @@
       log.replaceChildren(h("div", { class: "chat-welcome" },
         h("p", null, `नमस्ते ${S.name} 🙏`),
         h("p", null, "मैं गीता सखा हूँ। गीता के किसी भी श्लोक, विषय या जीवन से जुड़े प्रश्न पर विस्तार से चर्चा कर सकते हैं।"),
+        h("p", { class: "muted" }, "किसी भी भाषा में लिखें या 🎤 दबाकर बोलें — भाषा अपने-आप पहचानी जाएगी। Type or speak in any language — it's detected automatically."),
         h("div", { class: "ideas" }, ideas.map((q) => h("button", { class: "chip", onclick: () => { $("#chat-text").value = q; chatSend(); } }, q)))));
       return;
     }
