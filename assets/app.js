@@ -1,7 +1,11 @@
-/* Gita Gyan — one app for both links.
- * index.html  → public reader (name + password gate)
- * admin.html  → same site with editing tools; "Publish" commits to GitHub so the
+/* Gita Gyan — one app for every page.
+ * index.html  → name + password login, then a choice: Gita or Income Tax Calculator
+ * gita.html   → public reader
+ * tax.html    → Income Tax Calculator (assets/tax.js)
+ * admin.html  → reader with editing tools; "Publish" commits to GitHub so the
  *               public link picks the change up automatically (~1 minute).
+ * gita.html and tax.html open only after the same login (remembered on the
+ * device, or for this tab) and send visitors back to index.html otherwise.
  * Content lives in data/gita.enc, encrypted with the access password, so the
  * public GitHub repo never exposes it.
  */
@@ -9,10 +13,13 @@
   "use strict";
 
   const ADMIN = document.body.dataset.mode === "admin";
+  const PAGE = document.body.dataset.page || "gita"; // hub | gita | tax
+  const FOOTER = "© 2026 SKC & CO. All rights reserved";
   const LS = {
     auth: "gg-auth", prefs: "gg-prefs", draft: "gg-admin-draft",
     ghToken: "gg-gh-token", adminKey: "gg-worker-admin-key",
   };
+  const SS = { auth: "gg-session" };
   const S = {
     config: null, enc: null, content: null, password: "", name: "",
     pendingPassword: null, dirty: false, editing: null,
@@ -30,6 +37,7 @@
   const session = {
     get(k, fallback = null) { try { const v = sessionStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
     set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } },
+    del(k) { try { sessionStorage.removeItem(k); } catch { /* ignore */ } },
   };
 
   function h(tag, attrs, ...kids) {
@@ -183,12 +191,14 @@
     } catch {
       S.config = { title: "गीता ज्ञान", tagline: "" };
     }
-    document.title = (S.config.title || "Gita Gyan") + (ADMIN ? " · Admin" : "");
-    const saved = store.get(LS.auth);
+    document.title = (PAGE === "tax" ? "Income Tax Calculator · " : "") + (S.config.title || "Gita Gyan") + (ADMIN ? " · Admin" : "");
+    const remembered = store.get(LS.auth);
+    const saved = remembered || session.get(SS.auth);
     if (saved?.password) {
-      const ok = await tryLogin(saved.name, saved.password, true).catch(() => false);
+      const ok = await tryLogin(saved.name, saved.password, !!remembered).catch(() => false);
       if (ok) return;
     }
+    if (!ADMIN && PAGE !== "hub") { location.replace("index.html" + location.hash); return; }
     renderLogin();
   }
 
@@ -232,14 +242,19 @@
     try { content = await decryptContent(S.enc, password); } catch { return false; }
     S.content = content; S.password = password; S.name = name;
     if (remember) store.set(LS.auth, { name, password }); else store.del(LS.auth);
+    session.set(SS.auth, { name, password });
     if (ADMIN) restoreDraft();
     logVisit();
-    startApp();
+    if (PAGE === "hub") startHub();
+    else if (PAGE === "tax") startTax();
+    else startApp();
     return true;
   }
 
   function logout() {
     store.del(LS.auth);
+    session.del(SS.auth);
+    if (!ADMIN) { location.replace("index.html"); return; }
     location.hash = "";
     location.reload();
   }
@@ -255,19 +270,77 @@
   }
 
   /* ---------- app shell ---------- */
-  function startApp() {
+  function shell(...top) {
     const app = $("#app");
     app.className = "";
     app.replaceChildren(...[
-      ADMIN ? adminBar() : null,
-      header(),
+      ...top,
       h("main", { id: "view", tabindex: "-1" }),
       h("footer", { class: "site-footer" }, h("div", { id: "footer-text" })),
     ].filter(Boolean));
     renderFooter();
+  }
+
+  function startApp() {
+    shell(ADMIN ? adminBar() : null, header());
     chatMount();
     window.addEventListener("hashchange", () => { if (!S.keepEditing) S.editing = null; S.keepEditing = false; route(); });
     route();
+  }
+
+  // Links shared by every page's header (and the ☰ menu on small screens).
+  function siteLinks() {
+    const gitaHref = PAGE === "gita" ? "#/" : "gita.html";
+    return [["hub", "index.html", "मुख्य · Home"], ["gita", gitaHref, "गीता · Gita"], ["tax", "tax.html", "आयकर · Income Tax"]]
+      .map(([id, href, label]) => h("a", { href, "aria-current": id === PAGE ? "page" : null }, label));
+  }
+
+  function themeChips() {
+    return h("div", { class: "chips" },
+      h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
+      h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark"));
+  }
+
+  // Header for the choice screen and the tax page: brand, shared links, theme and logout.
+  function simpleHeader() {
+    const menu = h("details", { class: "menu" },
+      h("summary", { "aria-label": "Menu" }, "☰"),
+      h("div", { class: "menu-panel" },
+        h("div", { class: "menu-label" }, "सेवाएँ · Sections"),
+        h("div", { class: "menu-links" }, siteLinks()),
+        h("div", { class: "menu-label" }, "रंग · Theme"),
+        themeChips(),
+        h("hr"),
+        h("div", { class: "menu-user" }, `🙏 ${S.name}`),
+        h("button", { class: "btn small ghost", onclick: logout }, "Logout")));
+    return h("header", { class: "site-header simple" },
+      h("a", { href: "index.html", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
+      h("nav", { class: "main-nav" }, siteLinks()),
+      menu);
+  }
+
+  /* ---------- choice screen (index.html) and tax page ---------- */
+  function startHub() {
+    // Old shared links (index.html#/c/2/47) still open the reader.
+    if (location.hash.replace(/^#\/?/, "")) { location.replace("gita.html" + location.hash); return; }
+    shell(simpleHeader());
+    const card = (href, icon, title, sub) => h("a", { class: "hub-card", href },
+      h("span", { class: "hub-icon", "aria-hidden": "true" }, icon),
+      h("span", { class: "hub-title" }, title),
+      h("span", { class: "hub-sub" }, sub));
+    $("#view").replaceChildren(h("section", { class: "hub" },
+      h("div", { class: "hero-om", "aria-hidden": "true" }, "ॐ"),
+      h("h1", { class: "page-title" }, `🙏 नमस्ते, ${S.name}`),
+      h("p", { class: "hero-sub" }, "आगे बढ़ने के लिए चुनें · Choose where to go"),
+      h("div", { class: "hub-grid" },
+        card("gita.html", "ॐ", "गीता · Gita", S.config.tagline || "श्रीमद्भगवद्गीता"),
+        card("tax.html", "₹", "आयकर गणना · Income Tax Calculator", "FY 2025-26 · AY 2026-27 — old vs new regime, computation of income"))));
+  }
+
+  function startTax() {
+    shell(simpleHeader());
+    if (window.TaxApp) window.TaxApp.mount($("#view"), { h, toast });
+    else $("#view").replaceChildren(h("p", { class: "warn" }, "The calculator could not load. Please refresh the page."));
   }
 
   function header() {
@@ -292,9 +365,9 @@
           h("button", { class: "chip", onclick: () => setScale(0) }, "A"),
           h("button", { class: "chip", onclick: () => setScale(0.1) }, "A+")),
         h("div", { class: "menu-label" }, "रंग · Theme"),
-        h("div", { class: "chips" },
-          h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
-          h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark")),
+        themeChips(),
+        h("div", { class: "menu-label" }, "सेवाएँ · Sections"),
+        h("div", { class: "menu-links" }, siteLinks()),
         h("div", { class: "menu-label" }, "पृष्ठ · Pages"),
         h("div", { id: "menu-pages", class: "menu-links" }),
         h("hr"),
@@ -303,7 +376,7 @@
       ));
     return h("header", { class: "site-header" },
       h("a", { href: "#/", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
-      h("nav", { class: "main-nav" }, h("a", { href: "#/chapters" }, "अध्याय")),
+      h("nav", { class: "main-nav" }, siteLinks(), h("a", { href: "#/chapters" }, "अध्याय")),
       search, menu);
   }
 
@@ -317,7 +390,7 @@
 
   function renderFooter() {
     const f = $("#footer-text");
-    if (f) f.innerHTML = md(S.content.site.footer || "");
+    if (f) f.textContent = FOOTER;
   }
 
   function setScale(d) {
@@ -524,7 +597,7 @@
   }
 
   function copyLink(hash) {
-    const url = location.href.replace(/admin\.html/, "index.html").split("#")[0] + hash;
+    const url = location.href.replace(/(admin|index)\.html/, "gita.html").split("#")[0] + hash;
     navigator.clipboard?.writeText(url).then(() => toast("लिंक कॉपी हो गया · Link copied"), () => toast(url));
   }
 
@@ -626,7 +699,6 @@
       field("उपशीर्षक · Subtitle", "subtitle", site.subtitle),
       field("सूचना · Announcement (optional, shows as a banner)", "announcement", site.announcement, { rows: 2 }),
       field("परिचय · Introduction (markdown)", "intro", site.intro, { rows: 8 }),
-      field("फ़ुटर · Footer / copyright", "footer", site.footer, { rows: 2 }),
     ], { onSave: (d) => { Object.assign(site, d); } });
   }
 
@@ -696,7 +768,7 @@
       h("span", { class: "admin-pill" }, "ADMIN"),
       h("span", { id: "admin-status", class: "admin-status" }),
       h("a", { class: "btn small ghost", href: "#/admin" }, "⚙ Settings"),
-      h("a", { class: "btn small ghost", href: "index.html", target: "_blank" }, "Public view ↗"),
+      h("a", { class: "btn small ghost", href: "gita.html", target: "_blank" }, "Public view ↗"),
       h("button", { class: "btn small ghost", id: "discard-btn", onclick: discardDraft }, "Discard"),
       h("button", { class: "btn small primary", id: "publish-btn", onclick: publish }, "Publish"));
   }

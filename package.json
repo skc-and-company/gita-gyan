@@ -1,0 +1,8 @@
+{
+  "name": "gita-gyan",
+  "private": true,
+  "description": "Gita Gyan static site with the Income Tax Calculator",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}
