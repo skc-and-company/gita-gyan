@@ -181,7 +181,7 @@
     try {
       S.config = await (await fetchFresh("data/config.json")).json();
     } catch {
-      S.config = { title: "गीता ज्ञान", tagline: "" };
+      S.config = { title: "Gita Gyan", tagline: "" };
     }
     document.title = (S.config.title || "Gita Gyan") + (ADMIN ? " · Admin" : "");
     const saved = store.get(LS.auth);
@@ -196,31 +196,31 @@
     const app = $("#app");
     app.className = "login-wrap";
     const saved = store.get(LS.auth) || {};
-    const nameIn = h("input", { id: "login-name", autocomplete: "name", placeholder: "आपका नाम / Your name", value: saved.name || (ADMIN ? "Admin" : ""), required: true });
-    const passIn = h("input", { id: "login-pass", type: "password", autocomplete: "current-password", placeholder: "पासवर्ड / Password", required: true });
+    const nameIn = h("input", { id: "login-name", autocomplete: "name", placeholder: "Your name", value: saved.name || (ADMIN ? "Admin" : ""), required: true });
+    const passIn = h("input", { id: "login-pass", type: "password", autocomplete: "current-password", placeholder: "Password", required: true });
     const remember = h("input", { type: "checkbox", id: "login-remember", checked: true });
-    const btn = h("button", { class: "btn primary block", type: "submit" }, "प्रवेश करें · Enter");
+    const btn = h("button", { class: "btn primary block", type: "submit" }, "Enter");
     const err = h("p", { class: "login-error", role: "alert" }, error);
     const form = h("form", {
       class: "login-card",
       onsubmit: async (e) => {
         e.preventDefault();
         if (!nameIn.value.trim() || !passIn.value) return;
-        btn.disabled = true; btn.textContent = "खुल रहा है…"; err.textContent = "";
+        btn.disabled = true; btn.textContent = "Opening…"; err.textContent = "";
         const ok = await tryLogin(nameIn.value.trim(), passIn.value, remember.checked).catch((e2) => { err.textContent = e2.message; return null; });
-        if (ok === false) err.textContent = "पासवर्ड गलत है। · Wrong password.";
-        if (!ok) { btn.disabled = false; btn.textContent = "प्रवेश करें · Enter"; passIn.select(); }
+        if (ok === false) err.textContent = "Wrong password.";
+        if (!ok) { btn.disabled = false; btn.textContent = "Enter"; passIn.select(); }
       },
     },
       h("div", { class: "login-om", "aria-hidden": "true" }, "ॐ"),
-      h("h1", null, S.config.title || "गीता ज्ञान"),
+      h("h1", null, S.config.title || "Gita Gyan"),
       S.config.tagline ? h("p", { class: "login-tag" }, S.config.tagline) : null,
       ADMIN ? h("p", { class: "admin-pill" }, "Admin") : null,
-      h("label", { for: "login-name" }, "नाम · Name"), nameIn,
-      h("label", { for: "login-pass" }, "पासवर्ड · Password"), passIn,
-      h("label", { class: "check" }, remember, " इस डिवाइस पर याद रखें · Remember me"),
+      h("label", { for: "login-name" }, "Name"), nameIn,
+      h("label", { for: "login-pass" }, "Password"), passIn,
+      h("label", { class: "check" }, remember, " Remember me on this device"),
       btn, err,
-      h("p", { class: "login-help" }, ADMIN ? "Use the readers' access password. Publishing also needs your GitHub token (Settings)." : "पासवर्ड न हो तो साइट के व्यवस्थापक से संपर्क करें।"),
+      h("p", { class: "login-help" }, ADMIN ? "Use the readers' access password. Publishing also needs your GitHub token (Settings)." : "Don't have the password? Please contact the site administrator."),
     );
     app.replaceChildren(form);
     (saved.name && !ADMIN ? passIn : nameIn).focus();
@@ -271,36 +271,36 @@
   }
 
   function header() {
-    const toggles = [["sa", "संस्कृत"], ["tr", "Roman"], ["hi", "हिन्दी"], ["en", "English"]].map(([k, label]) =>
+    const toggles = [["sa", "Sanskrit"], ["tr", "Roman"], ["en", "English"], ["hi", "Hindi"]].map(([k, label]) =>
       h("button", {
-        class: `chip ${S.prefs[k] ? "on" : ""}`, "aria-pressed": String(!!S.prefs[k]), title: "दिखाएँ/छिपाएँ",
+        class: `chip ${S.prefs[k] ? "on" : ""}`, "aria-pressed": String(!!S.prefs[k]), title: "Show / hide",
         onclick: (e) => { S.prefs[k] = !S.prefs[k]; store.set(LS.prefs, S.prefs); e.currentTarget.classList.toggle("on", S.prefs[k]); e.currentTarget.setAttribute("aria-pressed", String(S.prefs[k])); document.body.classList.toggle(`hide-${k}`, !S.prefs[k]); },
       }, label));
     for (const k of ["sa", "tr", "hi", "en"]) document.body.classList.toggle(`hide-${k}`, !S.prefs[k]);
     const search = h("form", {
       class: "search", role: "search",
       onsubmit: (e) => { e.preventDefault(); const q = e.currentTarget.q.value.trim(); if (q) location.hash = `#/search?q=${encodeURIComponent(q)}`; },
-    }, h("input", { name: "q", type: "search", placeholder: "खोजें · Search", "aria-label": "Search" }));
+    }, h("input", { name: "q", type: "search", placeholder: "Search", "aria-label": "Search" }));
     const menu = h("details", { class: "menu" },
       h("summary", { "aria-label": "Menu" }, "☰"),
       h("div", { class: "menu-panel" },
-        h("div", { class: "menu-label" }, "दिखाएँ · Show"),
+        h("div", { class: "menu-label" }, "Show"),
         h("div", { class: "chips" }, toggles),
-        h("div", { class: "menu-label" }, "अक्षर आकार · Text size"),
+        h("div", { class: "menu-label" }, "Text size"),
         h("div", { class: "chips" },
           h("button", { class: "chip", onclick: () => setScale(-0.1) }, "A−"),
           h("button", { class: "chip", onclick: () => setScale(0) }, "A"),
           h("button", { class: "chip", onclick: () => setScale(0.1) }, "A+")),
-        h("div", { class: "menu-label" }, "रंग · Theme"),
+        h("div", { class: "menu-label" }, "Theme"),
         h("div", { class: "chips" },
           h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
           h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark")),
-        h("div", { class: "menu-label" }, "सेवाएँ · Services"),
+        h("div", { class: "menu-label" }, "Services"),
         h("div", { class: "menu-links" },
-          h("a", { href: "#/chapters" }, "📖 अध्याय · Chapters"),
-          h("a", { href: "#/tax" }, "₹ आयकर गणना · Income Tax Calculator"),
-          h("a", { href: "#/videos" }, "▶ गीता से कैपिटल मार्केट तक · Videos")),
-        h("div", { class: "menu-label" }, "पृष्ठ · Pages"),
+          h("a", { href: "#/chapters" }, "📖 Chapters"),
+          h("a", { href: "#/tax" }, "₹ Income Tax Calculator"),
+          h("a", { href: "#/videos" }, "▶ Gita se Capital Market tak (videos)")),
+        h("div", { class: "menu-label" }, "Pages"),
         h("div", { id: "menu-pages", class: "menu-links" }),
         h("hr"),
         h("div", { class: "menu-user" }, `🙏 ${S.name}`),
@@ -309,9 +309,9 @@
     return h("header", { class: "site-header" },
       h("a", { href: "#/", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
       h("nav", { class: "main-nav" },
-        h("a", { href: "#/chapters" }, "अध्याय"),
-        h("a", { href: "#/tax" }, "आयकर गणना"),
-        h("a", { href: "#/videos" }, "गीता से मार्केट तक")),
+        h("a", { href: "#/chapters" }, "Chapters"),
+        h("a", { href: "#/tax" }, "Tax Calculator"),
+        h("a", { href: "#/videos" }, "Videos")),
       search, menu);
   }
 
@@ -319,7 +319,7 @@
     $("#brand-title").textContent = S.content.site.title;
     const links = $("#menu-pages");
     links.replaceChildren(...S.content.pages.map((p) => h("a", { href: `#/p/${p.id}` }, p.title)));
-    if (ADMIN) links.append(h("a", { href: "#/p/new", class: "muted" }, "+ नया पृष्ठ / New page"));
+    if (ADMIN) links.append(h("a", { href: "#/p/new", class: "muted" }, "+ New page"));
     renderFooter();
   }
 
@@ -392,26 +392,26 @@
           site.announcement ? h("div", { class: "announce", html: md(site.announcement) }) : null,
           h("div", { class: "prose intro", html: md(site.intro) }),
           h("div", { class: "hero-actions" },
-            h("a", { class: "btn primary", href: "#/c/1" }, "पढ़ना आरंभ करें · Start reading"),
-            h("button", { class: "btn", onclick: () => chatOpen() }, "🙏 गीता सखा से पूछें"))),
-        "मुखपृष्ठ संपादित करें · Edit home"),
+            h("a", { class: "btn primary", href: "#/c/1" }, "Start reading"),
+            h("button", { class: "btn", onclick: () => chatOpen() }, "🙏 Ask Saarthi"))),
+        "Edit home"),
       today ? h("section", { class: "today" },
-        h("h2", { class: "section-title" }, "आज का श्लोक · Shlok of the day"),
+        h("h2", { class: "section-title" }, "Shlok of the day"),
         shlokCard(findChapter(today.c), today.s, { compact: true })) : null,
       h("section", null,
-        h("h2", { class: "section-title" }, `अध्याय · ${chapters().length} Chapters · ${totalShlokas()} श्लोक`),
+        h("h2", { class: "section-title" }, `${chapters().length} Chapters · ${totalShlokas()} Shlokas`),
         chapterGrid()),
       h("section", null,
-        h("h2", { class: "section-title" }, "सेवाएँ · More from SKC & CO."),
+        h("h2", { class: "section-title" }, "More from SKC & CO."),
         h("div", { class: "service-grid" },
           h("a", { class: "chapter-card service-card", href: "#/tax" },
             h("span", { class: "service-icon", "aria-hidden": "true" }, "₹"),
-            h("span", { class: "cc-sa" }, "आयकर गणना"),
-            h("span", { class: "cc-en" }, "Income Tax Calculator — Tax Year 2026-27, old vs new regime, printable computation")),
+            h("span", { class: "cc-sa" }, "Income Tax Calculator"),
+            h("span", { class: "cc-en" }, "Tax Year 2026-27 — old vs new regime, printable computation; Saarthi can fill it from your Form 16")),
           h("a", { class: "chapter-card service-card", href: "#/videos" },
             h("span", { class: "service-icon", "aria-hidden": "true" }, "▶"),
-            h("span", { class: "cc-sa" }, "गीता से कैपिटल मार्केट तक"),
-            h("span", { class: "cc-en" }, "JMJ Wealth Creator videos — गीता की सीख से निवेश की समझ")))));
+            h("span", { class: "cc-sa" }, "Gita se Capital Market tak"),
+            h("span", { class: "cc-en" }, "JMJ Wealth Creator videos — investing lessons from the Gita")))));
   }
 
   /* ---------- Income Tax Calculator (assets/tax.js) ---------- */
@@ -426,12 +426,12 @@
   const DEFAULT_VIDEOS = {
     items: [
       { id: "6WarPaJ10FU", title: "Silver Seasonal Secrets", type: "Long video", duration: "10:41",
-        desc: "पोर्टफोलियो लाल है? गीता कहती है – कर्म करो, फल की चिंता मत करो। जून-जुलाई में सिल्वर क्यों कमज़ोर होता है, 2021–2025 का डेटा, किश्तों में निवेश, स्टॉप-लॉस, फिज़िकल सिल्वर बनाम सिल्वर ETF।" },
+        desc: "Portfolio in the red? The Gita says: do your duty, don't worry about the fruit. Why silver tends to weaken in June–July, data from 2021–2025, investing in instalments, stop-losses, and physical silver vs silver ETFs." },
       { id: "b0KorRf3gb0", title: "The Silver Seasonal Secret", type: "Short", duration: "1:19",
-        desc: "हर साल जून-जुलाई में सिल्वर सस्ता क्यों होता है? 3 कारण, और दिवाली तक धैर्य।" },
+        desc: "Why does silver get cheaper every June–July? Three reasons — and patience till Diwali." },
     ],
-    soon: ["स्थितप्रज्ञ निवेशक", "कर्मयोग और रिस्क मैनेजमेंट", "स्वधर्म और एसेट एलोकेशन"],
-    disclaimer: "केवल शैक्षणिक उद्देश्य से; यह बाय/सेल सलाह नहीं है। (For educational purposes only; this is not buy/sell advice.)",
+    soon: ["The Sthitaprajna (steady-minded) investor", "Karma Yoga and risk management", "Swadharma and asset allocation"],
+    disclaimer: "For educational purposes only; this is not buy/sell advice.",
   };
   const videosData = () => S.content.videos || DEFAULT_VIDEOS;
   const youtubeId = (s) => {
@@ -445,8 +445,8 @@
     return h("div", { class: "videos" },
       editable("videos", () => editVideosForm(),
         h("div", null,
-          h("h1", { class: "page-title" }, "गीता से कैपिटल मार्केट तक"),
-          h("p", { class: "muted" }, "Gita se Capital Market tak · JMJ Wealth Creator"),
+          h("h1", { class: "page-title" }, "Gita se Capital Market tak"),
+          h("p", { class: "muted" }, "From the Gita to the capital market · JMJ Wealth Creator"),
           v.items.length ? v.items.map((x, i) => h("section", { class: "video-card" },
             h("h2", null, `Ep ${i + 1} · ${x.title} `, h("span", { class: "muted" }, [x.type, x.duration].filter(Boolean).join(" · "))),
             h("div", { class: "video-frame" },
@@ -456,16 +456,16 @@
                 referrerpolicy: "strict-origin-when-cross-origin",
               })),
             x.desc ? h("p", { class: "video-desc" }, x.desc) : null,
-            h("p", { class: "muted" }, h("a", { href: `https://youtu.be/${encodeURIComponent(x.id)}`, target: "_blank", rel: "noopener" }, "YouTube पर देखें · Watch on YouTube ↗"))))
-            : h("p", { class: "missing" }, "अभी कोई वीडियो नहीं है।"),
-          v.soon?.length ? h("section", { class: "video-card" }, h("h2", null, "जल्द आ रहा है · Coming soon"), h("ul", null, v.soon.map((t) => h("li", null, t)))) : null,
-          v.disclaimer ? h("p", { class: "tax-disc" }, h("b", null, "अस्वीकरण / Disclaimer: "), v.disclaimer) : null),
-        "वीडियो संपादित करें · Edit videos"));
+            h("p", { class: "muted" }, h("a", { href: `https://youtu.be/${encodeURIComponent(x.id)}`, target: "_blank", rel: "noopener" }, "Watch on YouTube ↗"))))
+            : h("p", { class: "missing" }, "No videos yet."),
+          v.soon?.length ? h("section", { class: "video-card" }, h("h2", null, "Coming soon"), h("ul", null, v.soon.map((t) => h("li", null, t)))) : null,
+          v.disclaimer ? h("p", { class: "tax-disc" }, h("b", null, "Disclaimer: "), v.disclaimer) : null),
+        "Edit videos"));
   }
 
   function editVideosForm() {
     const v = videosData();
-    return form("वीडियो · Videos", [
+    return form("Videos", [
       field("Videos — one per line:  YouTube link | title | type | duration | description", "items",
         v.items.map((x) => [`https://youtu.be/${x.id}`, x.title, x.type, x.duration, x.desc].join(" | ")).join("\n"),
         { rows: 8, hint: "Example: https://youtu.be/6WarPaJ10FU | Silver Seasonal Secrets | Long video | 10:41 | short description" }),
@@ -486,7 +486,7 @@
   }
 
   function viewChapters() {
-    return h("div", null, h("h1", { class: "page-title" }, "अध्याय · Chapters"), chapterGrid());
+    return h("div", null, h("h1", { class: "page-title" }, "Chapters"), chapterGrid());
   }
 
   function chapterGrid() {
@@ -494,10 +494,10 @@
       chapters().map((c) => h("a", { class: "chapter-card", href: `#/c/${c.n}` },
         h("span", { class: "cc-num" }, c.n),
         h("span", { class: "cc-sa" }, c.sa),
-        h("span", { class: "cc-hi" }, c.hi),
         h("span", { class: "cc-en" }, c.en),
-        h("span", { class: "cc-count" }, `${c.shlokas.length} श्लोक`))),
-      ADMIN ? h("button", { class: "chapter-card add", onclick: addChapter }, "+ नया अध्याय · Add chapter") : null);
+        h("span", { class: "cc-hi" }, c.hi),
+        h("span", { class: "cc-count" }, `${c.shlokas.length} shlokas`))),
+      ADMIN ? h("button", { class: "chapter-card add", onclick: addChapter }, "+ Add chapter") : null);
   }
 
   function viewChapter(n) {
@@ -508,23 +508,23 @@
     const jump = h("select", {
       class: "jump", "aria-label": "Go to shlok",
       onchange: (e) => { const el = $(`#s-${n}-${e.target.value}`); if (el) el.scrollIntoView({ behavior: "smooth" }); },
-    }, h("option", { value: "" }, "श्लोक पर जाएँ…"), c.shlokas.map((s) => h("option", { value: s.v }, `${n}.${s.v}`)));
+    }, h("option", { value: "" }, "Go to shlok…"), c.shlokas.map((s) => h("option", { value: s.v }, `${n}.${s.v}`)));
     return h("article", { class: "chapter" },
       editable(`c:${n}`, () => editChapterForm(c),
         h("header", { class: "chapter-head" },
-          h("div", { class: "eyebrow" }, `अध्याय ${n} · Chapter ${n}`),
+          h("div", { class: "eyebrow" }, `Chapter ${n}`),
           h("h1", { class: "ch-sa" }, c.sa),
-          h("p", { class: "ch-names" }, h("span", null, c.hi), " · ", h("span", { class: "ch-en" }, c.en)),
+          h("p", { class: "ch-names" }, h("span", { class: "ch-en" }, c.en), " · ", h("span", null, c.hi)),
           h("p", { class: "ch-tr" }, c.tr),
-          c.sum_hi ? h("p", { class: "ch-sum hi-text" }, c.sum_hi) : null,
           c.sum_en ? h("p", { class: "ch-sum en-text" }, c.sum_en) : null,
+          c.sum_hi ? h("p", { class: "ch-sum hi-text" }, c.sum_hi) : null,
           h("div", { class: "ch-tools" }, jump,
-            h("button", { class: "btn small", onclick: () => chatOpen(`अध्याय ${n} (${c.hi}) का सार और मुख्य शिक्षाएँ विस्तार से समझाइए।`) }, "🙏 इस अध्याय पर चर्चा"))),
-        "अध्याय संपादित करें · Edit chapter"),
+            h("button", { class: "btn small", onclick: () => chatOpen(`Explain the essence and main teachings of Chapter ${n} (${c.en}) in detail.`) }, "🙏 Discuss this chapter"))),
+        "Edit chapter"),
       h("div", { class: "shlok-list" }, c.shlokas.map((s) => shlokCard(c, s))),
-      ADMIN ? h("button", { class: "btn add-shlok", onclick: () => addShlok(c) }, `+ श्लोक जोड़ें · Add shlok ${n}.${(c.shlokas.at(-1)?.v || 0) + 1}`) : null,
+      ADMIN ? h("button", { class: "btn add-shlok", onclick: () => addShlok(c) }, `+ Add shlok ${n}.${(c.shlokas.at(-1)?.v || 0) + 1}`) : null,
       c.colophon ? h("p", { class: "colophon" }, c.colophon) : null,
-      pager(prev && { href: `#/c/${prev.n}`, label: `← अध्याय ${prev.n}` }, next && { href: `#/c/${next.n}`, label: `अध्याय ${next.n} →` }));
+      pager(prev && { href: `#/c/${prev.n}`, label: `← Chapter ${prev.n}` }, next && { href: `#/c/${next.n}`, label: `Chapter ${next.n} →` }));
   }
 
   function viewShlok(n, v) {
@@ -534,7 +534,7 @@
     const i = flat.findIndex((x) => x.c === n && x.s === s);
     const prev = flat[i - 1], next = flat[i + 1];
     return h("article", { class: "single" },
-      h("a", { class: "back", href: `#/c/${n}` }, `← अध्याय ${n} · ${c.hi}`),
+      h("a", { class: "back", href: `#/c/${n}` }, `← Chapter ${n} · ${c.en}`),
       shlokCard(c, s, { single: true }),
       pager(prev && { href: `#/c/${prev.c}/${prev.s.v}`, label: `← ${prev.c}.${prev.s.v}` }, next && { href: `#/c/${next.c}/${next.s.v}`, label: `${next.c}.${next.s.v} →` }));
   }
@@ -545,26 +545,26 @@
     const ref = `${c.n}.${s.v}`;
     return h("section", { class: `shlok ${opts.single ? "single-card" : ""}`, id: `s-${c.n}-${s.v}` },
       h("div", { class: "shlok-top" },
-        h("a", { class: "badge", href: `#/c/${c.n}/${s.v}`, title: "इस श्लोक का लिंक" }, `श्लोक ${ref}`),
+        h("a", { class: "badge", href: `#/c/${c.n}/${s.v}`, title: "Link to this shlok" }, `Shlok ${ref}`),
         h("div", { class: "shlok-actions" },
-          h("button", { class: "icon-btn", title: "गीता सखा से पूछें · Ask about this shlok", onclick: () => chatOpen(`श्लोक ${ref} को गहराई से समझाइए — शब्दार्थ, भाव और जीवन में उपयोग।`) }, "🙏"),
-          h("button", { class: "icon-btn", title: "लिंक कॉपी करें · Copy link", onclick: () => copyLink(`#/c/${c.n}/${s.v}`) }, "🔗"),
+          h("button", { class: "icon-btn", title: "Ask Saarthi about this shlok", onclick: () => chatOpen(`Explain shlok ${ref} in depth — word meanings, its sense, and how to apply it in life.`) }, "🙏"),
+          h("button", { class: "icon-btn", title: "Copy link", onclick: () => copyLink(`#/c/${c.n}/${s.v}`) }, "🔗"),
           ADMIN ? h("button", { class: "icon-btn edit", title: "Edit", onclick: () => { S.editing = key; rerender(); } }, "✎") : null)),
       s.sa ? h("p", { class: "sa-text" }, s.sa) : null,
       s.tr ? h("p", { class: "tr-text" }, s.tr) : null,
-      h("div", { class: "hi-block" },
-        h("div", { class: "label" }, "हिन्दी भावार्थ"),
-        s.hi ? h("p", { class: "hi-text" }, s.hi) : h("p", { class: "missing" }, "भावार्थ अभी जोड़ा जाना है।")),
       h("div", { class: "en-block" },
         h("div", { class: "label" }, "English · Shri Purohit Swami"),
         s.en ? h("p", { class: "en-text" }, s.en) : h("p", { class: "missing" }, "Purohit Swami's translation is not available for this verse.")),
-      s.note ? h("div", { class: "note-block" }, h("div", { class: "label" }, "टिप्पणी · Note"), h("div", { class: "prose", html: md(s.note) })) : null,
-      opts.compact ? h("a", { class: "more", href: `#/c/${c.n}` }, `अध्याय ${c.n} पढ़ें →`) : null);
+      h("div", { class: "hi-block" },
+        h("div", { class: "label" }, "Hindi meaning (Bhavarth)"),
+        s.hi ? h("p", { class: "hi-text" }, s.hi) : h("p", { class: "missing" }, "Hindi meaning not added yet.")),
+      s.note ? h("div", { class: "note-block" }, h("div", { class: "label" }, "Note"), h("div", { class: "prose", html: md(s.note) })) : null,
+      opts.compact ? h("a", { class: "more", href: `#/c/${c.n}` }, `Read chapter ${c.n} →`) : null);
   }
 
   function viewPage(id) {
     if (id === "new" && ADMIN) {
-      const page = { id: "", title: "नया पृष्ठ", body: "" };
+      const page = { id: "", title: "New page", body: "" };
       S.editing = "p:new";
       return h("div", null, editPageForm(page, true));
     }
@@ -573,7 +573,7 @@
     return h("article", { class: "page" },
       editable(`p:${p.id}`, () => editPageForm(p),
         h("div", null, h("h1", { class: "page-title" }, p.title), h("div", { class: "prose", html: md(p.body) })),
-        "पृष्ठ संपादित करें · Edit page"));
+        "Edit page"));
   }
 
   function viewSearch(q) {
@@ -590,11 +590,11 @@
     const ref = q.match(/^\s*(\d{1,2})[.: ](\d{1,3})\s*$/);
     return h("div", { class: "search-view" },
       h("h1", { class: "page-title" }, `“${q}”`),
-      ref && findShlok(+ref[1], +ref[2]) ? h("p", null, h("a", { class: "btn primary", href: `#/c/${ref[1]}/${ref[2]}` }, `श्लोक ${ref[1]}.${ref[2]} खोलें →`)) : null,
-      h("p", { class: "muted" }, hits.length ? `${hits.length}${hits.length >= 200 ? "+" : ""} परिणाम · results` : "कोई परिणाम नहीं मिला · No results"),
+      ref && findShlok(+ref[1], +ref[2]) ? h("p", null, h("a", { class: "btn primary", href: `#/c/${ref[1]}/${ref[2]}` }, `Open shlok ${ref[1]}.${ref[2]} →`)) : null,
+      h("p", { class: "muted" }, hits.length ? `${hits.length}${hits.length >= 200 ? "+" : ""} results` : "No results"),
       h("ol", { class: "results" }, hits.map(({ c, s, text }) => h("li", null,
         h("a", { href: `#/c/${c}/${s.v}` }, h("strong", null, `${c}.${s.v}`), " ", h("span", { html: snippet(text, q) }))))),
-      h("p", null, h("button", { class: "btn", onclick: () => chatOpen(q) }, `🙏 गीता सखा से पूछें: “${q}”`)));
+      h("p", null, h("button", { class: "btn", onclick: () => chatOpen(q) }, `🙏 Ask Saarthi: “${q}”`)));
   }
 
   function snippet(text, q) {
@@ -613,12 +613,12 @@
   }
 
   function notFound() {
-    return h("div", { class: "empty" }, h("h1", null, "पृष्ठ नहीं मिला"), h("p", null, h("a", { href: "#/" }, "मुखपृष्ठ पर जाएँ")));
+    return h("div", { class: "empty" }, h("h1", null, "Page not found"), h("p", null, h("a", { href: "#/" }, "Go to the home page")));
   }
 
   function copyLink(hash) {
     const url = location.href.replace(/admin\.html/, "index.html").split("#")[0] + hash;
-    navigator.clipboard?.writeText(url).then(() => toast("लिंक कॉपी हो गया · Link copied"), () => toast(url));
+    navigator.clipboard?.writeText(url).then(() => toast("Link copied"), () => toast(url));
   }
 
   /* ---------- admin: editing ---------- */
@@ -636,7 +636,7 @@
     return h("label", { class: "field" }, h("span", null, label), input, hint ? h("small", null, hint) : null);
   }
 
-  function form(title, fields, { onSave, onDelete, deleteLabel = "हटाएँ · Delete", extra = [] }) {
+  function form(title, fields, { onSave, onDelete, deleteLabel = "Delete", extra = [] }) {
     const f = h("form", {
       class: "edit-form",
       onsubmit: (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(f)); if (onSave(data) !== false) { S.editing = null; markDirty(); rerender(); } },
@@ -644,8 +644,8 @@
       h("div", { class: "edit-title" }, title),
       fields,
       h("div", { class: "edit-actions" },
-        h("button", { class: "btn primary", type: "submit" }, "सहेजें · Save"),
-        h("button", { class: "btn", type: "button", onclick: () => { S.editing = null; rerender(); } }, "रद्द · Cancel"),
+        h("button", { class: "btn primary", type: "submit" }, "Save"),
+        h("button", { class: "btn", type: "button", onclick: () => { S.editing = null; rerender(); } }, "Cancel"),
         extra,
         onDelete ? h("button", { class: "btn danger", type: "button", onclick: () => { if (onDelete() !== false) { S.editing = null; markDirty(); rerender(); } } }, deleteLabel) : null),
       h("p", { class: "edit-hint" }, "Save keeps the change in this browser. Press “Publish” (top bar) to make it live on the public link."));
@@ -657,14 +657,14 @@
     const translitBtn = h("button", {
       class: "btn", type: "button", title: "Rebuild the Roman transliteration from the Sanskrit box",
       onclick: (e) => { const fm = e.target.closest("form"); fm.tr.value = makeTranslit(fm.sa.value); },
-    }, "संस्कृत → Roman");
-    return h("div", { id: `s-${c.n}-${s.v}` }, form(`श्लोक ${c.n}.${s.v} संपादित करें`, [
-      field("श्लोक संख्या · Verse number", "v", s.v, { type: "number" }),
-      field("संस्कृत (देवनागरी)", "sa", s.sa, { rows: 4, cls: "sa-input" }),
+    }, "Sanskrit → Roman");
+    return h("div", { id: `s-${c.n}-${s.v}` }, form(`Edit shlok ${c.n}.${s.v}`, [
+      field("Verse number", "v", s.v, { type: "number" }),
+      field("Sanskrit (Devanagari)", "sa", s.sa, { rows: 4, cls: "sa-input" }),
       field("Roman transliteration", "tr", s.tr, { rows: 4 }),
-      field("हिन्दी भावार्थ", "hi", s.hi, { rows: 5, cls: "hi-input" }),
+      field("Hindi meaning (bhavarth)", "hi", s.hi, { rows: 5, cls: "hi-input" }),
       field("English (Shri Purohit Swami)", "en", s.en, { rows: 4 }),
-      field("टिप्पणी / Note (optional, markdown)", "note", s.note, { rows: 3 }),
+      field("Note (optional, markdown)", "note", s.note, { rows: 3 }),
     ], {
       extra: [translitBtn],
       onSave: (d) => {
@@ -675,23 +675,23 @@
         c.shlokas.sort((a, b) => a.v - b.v);
       },
       onDelete: () => {
-        if (!confirm(`श्लोक ${c.n}.${s.v} हटाएँ? · Delete shlok ${c.n}.${s.v}?`)) return false;
+        if (!confirm(`Delete shlok ${c.n}.${s.v}?`)) return false;
         c.shlokas.splice(c.shlokas.indexOf(s), 1);
       },
-      deleteLabel: "श्लोक हटाएँ · Delete shlok",
+      deleteLabel: "Delete shlok",
     }));
   }
 
   function editChapterForm(c) {
-    return form(`अध्याय ${c.n} संपादित करें`, [
-      field("अध्याय संख्या · Chapter number", "n", c.n, { type: "number" }),
-      field("संस्कृत नाम", "sa", c.sa),
+    return form(`Edit chapter ${c.n}`, [
+      field("Chapter number", "n", c.n, { type: "number" }),
+      field("Sanskrit name", "sa", c.sa),
       field("Roman name", "tr", c.tr),
-      field("हिन्दी नाम", "hi", c.hi),
+      field("Hindi name", "hi", c.hi),
       field("English name", "en", c.en),
-      field("सार (हिन्दी)", "sum_hi", c.sum_hi, { rows: 4 }),
+      field("Summary (Hindi)", "sum_hi", c.sum_hi, { rows: 4 }),
       field("Summary (English)", "sum_en", c.sum_en, { rows: 4 }),
-      field("पुष्पिका · Colophon", "colophon", c.colophon, { rows: 3 }),
+      field("Colophon", "colophon", c.colophon, { rows: 3 }),
     ], {
       onSave: (d) => {
         const n = parseInt(d.n, 10);
@@ -703,30 +703,30 @@
         if (moved) setTimeout(() => { location.hash = `#/c/${n}`; }, 0);
       },
       onDelete: () => {
-        const typed = prompt(`पूरा अध्याय ${c.n} (${c.shlokas.length} श्लोक) हटेगा। पुष्टि के लिए अध्याय संख्या ${c.n} लिखें:\nType ${c.n} to delete the whole chapter.`);
+        const typed = prompt(`This deletes the whole of chapter ${c.n} (${c.shlokas.length} shlokas).\nType ${c.n} to confirm.`);
         if (typed !== String(c.n)) return false;
         chapters().splice(chapters().indexOf(c), 1);
         setTimeout(() => { location.hash = "#/chapters"; }, 0);
       },
-      deleteLabel: "अध्याय हटाएँ · Delete chapter",
+      deleteLabel: "Delete chapter",
     });
   }
 
   function editHomeForm() {
     const site = S.content.site;
-    return form("मुखपृष्ठ · Home page", [
-      field("शीर्षक · Site title", "title", site.title),
-      field("उपशीर्षक · Subtitle", "subtitle", site.subtitle),
-      field("सूचना · Announcement (optional, shows as a banner)", "announcement", site.announcement, { rows: 2 }),
-      field("परिचय · Introduction (markdown)", "intro", site.intro, { rows: 8 }),
-      field("फ़ुटर · Footer / copyright", "footer", site.footer, { rows: 2 }),
+    return form("Home page", [
+      field("Site title", "title", site.title),
+      field("Subtitle", "subtitle", site.subtitle),
+      field("Announcement (optional, shows as a banner)", "announcement", site.announcement, { rows: 2 }),
+      field("Introduction (markdown)", "intro", site.intro, { rows: 8 }),
+      field("Footer / copyright", "footer", site.footer, { rows: 2 }),
     ], { onSave: (d) => { Object.assign(site, d); } });
   }
 
   function editPageForm(p, isNew = false) {
-    return form(isNew ? "नया पृष्ठ · New page" : "पृष्ठ संपादित करें · Edit page", [
-      field("शीर्षक · Title", "title", p.title),
-      field("सामग्री · Content (markdown: ## heading, **bold**, - list, [link](url))", "body", p.body, { rows: 14 }),
+    return form(isNew ? "New page" : "Edit page", [
+      field("Title", "title", p.title),
+      field("Content (markdown: ## heading, **bold**, - list, [link](url))", "body", p.body, { rows: 14 }),
     ], {
       onSave: (d) => {
         if (!d.title.trim()) { toast("Title required", "error"); return false; }
@@ -738,7 +738,7 @@
         } else Object.assign(p, { title: d.title.trim(), body: d.body });
       },
       onDelete: isNew ? null : () => {
-        if (!confirm(`“${p.title}” पृष्ठ हटाएँ? · Delete this page?`)) return false;
+        if (!confirm(`Delete the page “${p.title}”?`)) return false;
         S.content.pages.splice(S.content.pages.indexOf(p), 1);
         setTimeout(() => { location.hash = "#/"; }, 0);
       },
@@ -756,7 +756,7 @@
 
   function addChapter() {
     const n = Math.max(0, ...chapters().map((c) => c.n)) + 1;
-    chapters().push({ n, sa: "", tr: "", en: `Chapter ${n}`, hi: `अध्याय ${n}`, sum_hi: "", sum_en: "", colophon: "", shlokas: [] });
+    chapters().push({ n, sa: "", tr: "", en: `Chapter ${n}`, hi: "", sum_hi: "", sum_en: "", colophon: "", shlokas: [] });
     markDirty();
     S.editing = `c:${n}`;
     S.keepEditing = true;
@@ -1007,10 +1007,10 @@
         ghForm),
       section("2 · Readers' access password", pwForm),
       section("3 · Login screen", siteForm),
-      section("4 · Gita Sakha (AI agent)",
+      section("4 · Saarthi (AI assistant)",
         h("p", { class: "muted" }, "Needs the free Cloudflare Worker from the worker/ folder (see README)."),
         chatForm),
-      section("5 · Gita Sakha daily limit",
+      section("5 · Saarthi daily limit",
         h("p", { class: "muted" }, "Keeps your Claude cost in check. Needs the Worker admin key saved in section 4."),
         limitForm),
       section("6 · Visitor log", visitors, h("button", { class: "btn", onclick: loadVisitors, disabled: !cfg.chatUrl }, "Load visitor log")),
@@ -1026,7 +1026,7 @@
     document.body.append(a); a.click(); a.remove();
   }
 
-  /* ---------- Gita Sakha: the in-site agent ----------
+  /* ---------- Saarthi (सारथी): the in-site assistant for the Gita, tax and videos ----------
    * The worker holds the Claude API key and fixes model/system prompt/tools.
    * Tools run here in the browser, against the decrypted text of this site. */
   const TOOL_LIMIT = 8;
@@ -1061,10 +1061,73 @@
       return { chapter: c.n, sanskrit_name: c.sa, transliteration: c.tr, hindi_name: c.hi, english_name: c.en, verse_count: c.shlokas.length, summary_hindi: c.sum_hi, summary_english: c.sum_en };
     },
   };
+  // Saarthi's tax tools: the model sends plain-English field names; these map to the calculator's own fields.
+  const TAX_FIELDS = {
+    salary_gross: "sal", exempt_allowances: "salex", professional_tax: "pt", basic_da: "basic", rent_received: "rent",
+    municipal_tax: "mun", home_loan_interest: "hli", net_profit: "np", turnover_digital_44ad: "tod", turnover_cash_44ad: "toc",
+    gross_receipts_44ada: "gr", stcg_111a: "stcg111a", stcg_other: "stcgo", ltcg_112a: "ltcg112a", ltcg_112: "ltcg112",
+    savings_interest: "sbint", fd_interest: "fdint", dividends: "div", other_income: "oth", d80c: "d80c", d80ccd1b: "d80ccd1b",
+    d80ccd2: "d80ccd2", d80d_self: "d80ds", d80d_parents: "d80dp", d80e: "d80e", d80g: "d80g", other_deductions: "dother",
+  };
+  function taxInputs(i) {
+    const d = {
+      name: i.name || "", age: { "60_to_80": "1", "80_plus": "2" }[i.age] || "0", res: i.resident === false ? "0" : "1",
+      hpt: { self_occupied: "so", let_out: "lo" }[i.house_property] || "none", bt: { "44AD": "ad", "44ADA": "ada" }[i.business_method] || "np",
+      parsen: i.parents_senior ? "1" : "0", ttauto: "1",
+    };
+    for (const [k, f] of Object.entries(TAX_FIELDS)) if (i[k] != null && i[k] !== "") d[f] = String(i[k]);
+    return d;
+  }
+  function taxSummary(r, filled) {
+    const pick = (o) => ({
+      gross_total_income: o.gti, deductions: o.dedList.map(([section, , amount]) => ({ section, amount })), total_income: o.ti,
+      tax_on_total_income: Math.round(o.tax), rebate_87a: Math.round(o.rebate), surcharge: Math.round(o.sur), cess: Math.round(o.cess),
+      total_tax: o.total, ...(o.busCF ? { business_loss_not_set_off: o.busCF } : {}),
+    });
+    const newBetter = r.nw.total <= r.old.total;
+    return {
+      new_regime_tax: r.nw.total, old_regime_tax: r.old.total,
+      recommended: r.nw.total === r.old.total ? "either (equal)" : newBetter ? "new regime" : "old regime",
+      saving: Math.abs(r.nw.total - r.old.total), new_regime: pick(r.nw), old_regime: pick(r.old),
+      calculator_filled: !!filled, note: "Figures from the site's Income Tax Calculator (Tax Year 2026-27). Estimate for guidance, not tax advice.",
+    };
+  }
+  Object.assign(tools, {
+    calculate_tax(i) {
+      if (!window.GGTax) return { error: "The tax calculator isn't loaded — ask the person to refresh the page." };
+      const d = taxInputs(i);
+      if (!i.show_in_calculator) return taxSummary(window.GGTax.TAX.both(d), false);
+      const r = window.GGTax.prefill(d);
+      if (!location.hash.startsWith("#/tax")) location.hash = "#/tax";
+      return taxSummary(r, true);
+    },
+    read_tax_calculator() {
+      const c = window.GGTax?.current();
+      const filled = c?.inputs && Object.fromEntries(Object.entries(c.inputs).filter(([, v]) => v !== "" && v != null));
+      if (!c || (!c.result && (!filled || !filled.sal && Object.keys(filled).length <= 6))) return { empty: true, note: "Nothing has been entered or computed on the calculator yet." };
+      return { inputs: filled, result: c.result ? taxSummary(c.result, true) : null };
+    },
+    list_videos() {
+      const v = videosData();
+      return { episodes: v.items.map((x, n) => ({ episode: n + 1, title: x.title, type: x.type, duration: x.duration, description: x.desc, link: `https://youtu.be/${x.id}` })), coming_soon: v.soon || [], disclaimer: v.disclaimer };
+    },
+    open_page({ page, chapter, verse }) {
+      const target = { home: "#/", chapters: "#/chapters", tax: "#/tax", videos: "#/videos" }[page]
+        || (page === "chapter" && findChapter(chapter) ? `#/c/${chapter}${verse && findShlok(chapter, verse) ? "/" + verse : ""}` : null);
+      if (!target) return { error: "Unknown page or chapter." };
+      location.hash = target;
+      return { opened: target };
+    },
+  });
+
   const toolLabel = (name, input) => ({
-    get_shlokas: `📖 श्लोक ${input.chapter}.${input.start_verse}${input.end_verse && input.end_verse !== input.start_verse ? "–" + input.end_verse : ""} पढ़ रहे हैं`,
-    search_gita: `🔎 खोज: “${input.query}”`,
-    get_chapter: `📜 अध्याय ${input.chapter} देख रहे हैं`,
+    calculate_tax: input.show_in_calculator ? "🧮 Filling in the tax calculator" : "🧮 Calculating tax",
+    read_tax_calculator: "🧮 Reading the tax calculator",
+    list_videos: "▶ Looking at the videos",
+    open_page: "↗ Opening the page",
+    get_shlokas: `📖 Reading shlok ${input.chapter}.${input.start_verse}${input.end_verse && input.end_verse !== input.start_verse ? "–" + input.end_verse : ""}`,
+    search_gita: `🔎 Searching: “${input.query}”`,
+    get_chapter: `📜 Looking at chapter ${input.chapter}`,
   }[name] || name);
 
   /* Voice: ask by speaking and hear answers read aloud.
@@ -1116,19 +1179,19 @@
       async toggleListen() {
         if (session) { session.stop("tap"); return; }
         if (!v.canListen) {
-          toast("इस ब्राउज़र में आवाज़ रिकॉर्ड नहीं होती — Chrome या Safari में खोलें, या कीबोर्ड का 🎤 बटन इस्तेमाल करें।", "error");
+          toast("This browser can't record voice — open the site in Chrome or Safari, or use your keyboard's 🎤 button.", "error");
           return;
         }
-        if (!S.config.chatUrl) { toast("आवाज़ से पूछना AI जुड़ने के बाद चलेगा · Voice needs the AI agent to be set up.", "error"); return; }
+        if (!S.config.chatUrl) { toast("Voice questions need the AI assistant to be set up.", "error"); return; }
         if (S.chat.busy) return;
         v.stopSpeaking();
         const btn = $("#mic-btn"), label = $("#mic-label");
-        const idle = "बोलकर पूछें · Ask by voice";
+        const idle = "Ask by voice";
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
         } catch (e) {
-          toast(e.name === "NotFoundError" ? "माइक नहीं मिला · No microphone found." : "माइक की अनुमति दें — ब्राउज़र में Allow करें · Please allow the microphone.", "error");
+          toast(e.name === "NotFoundError" ? "No microphone found." : "Please allow microphone access in your browser.", "error");
           return;
         }
         const recorder = new MediaRecorder(stream);
@@ -1163,9 +1226,9 @@
           session = null;
           btn.classList.remove("listening");
           btn.style.removeProperty("--level");
-          if (!spoke) { label.textContent = idle; toast("कुछ सुनाई नहीं दिया — माइक के पास बोलें · Didn't hear anything, please try again."); return; }
+          if (!spoke) { label.textContent = idle; toast("Didn't hear anything — please speak closer to the mic and try again."); return; }
           btn.classList.add("working"); btn.disabled = true;
-          label.textContent = "समझ रहे हैं… · Understanding…";
+          label.textContent = "Understanding…";
           try {
             const wav = await toWav16k(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
             const res = await fetch(`${S.config.chatUrl}/transcribe`, {
@@ -1178,9 +1241,9 @@
               body: wav,
             });
             const out = await res.json().catch(() => ({}));
-            if (res.status === 429) throw new Error("आज की आवाज़ सीमा पूरी हो गई — लिखकर पूछें · Today's voice limit is used up, please type.");
+            if (res.status === 429) throw new Error("Today's voice limit is used up — please type your question.");
             if (!res.ok) throw new Error(typeof out.error === "string" ? out.error : `HTTP ${res.status}`);
-            if (!out.text) throw new Error("आवाज़ साफ़ समझ नहीं आई — फिर से बोलें · Couldn't make that out, please try again.");
+            if (!out.text) throw new Error("Couldn't make that out — please try again.");
             lastSpoken = out.language;
             const ta = $("#chat-text");
             ta.value = out.text;
@@ -1194,7 +1257,7 @@
         };
         recorder.start(250);
         btn.classList.add("listening");
-        label.textContent = "सुन रहे हैं… बोलिए · Listening, speak now";
+        label.textContent = "Listening… speak now (tap to stop)";
       },
       toggleSpeak(id, html) {
         if (v.speakingId === id) { v.stopSpeaking(); return; }
@@ -1236,24 +1299,27 @@
     const saved = session.get("gg-chat");
     if (saved) { S.chat.messages = saved.messages || []; S.chat.view = saved.view || []; }
     document.body.append(
-      h("button", { class: "chat-fab", id: "chat-fab", onclick: () => chatOpen(), "aria-label": "गीता सखा से बात करें" }, h("span", null, "🙏"), h("span", { class: "fab-label" }, "गीता सखा")),
-      h("aside", { class: "chat", id: "chat", "aria-label": "Gita Sakha", hidden: true },
+      h("button", { class: "chat-fab", id: "chat-fab", onclick: () => chatOpen(), "aria-label": "Talk to Saarthi" }, h("span", null, "🙏"), h("span", { class: "fab-label" }, "Saarthi")),
+      h("aside", { class: "chat", id: "chat", "aria-label": "Saarthi", hidden: true },
         h("header", { class: "chat-head" },
-          h("div", null, h("strong", null, "🙏 गीता सखा"), h("small", null, "Gita Sakha — गीता पर गहन चर्चा")),
+          h("div", null, h("strong", null, "🙏 Saarthi"), h("small", null, "Your guide for the Gita, tax and investing videos")),
           h("div", null,
-            h("button", { class: "icon-btn", title: "नई बातचीत · New conversation", onclick: chatReset }, "↺"),
-            h("button", { class: "icon-btn", title: "बंद करें · Close", onclick: chatClose }, "✕"))),
+            h("button", { class: "icon-btn", title: "New conversation", onclick: chatReset }, "↺"),
+            h("button", { class: "icon-btn", title: "Close", onclick: chatClose }, "✕"))),
         h("div", { class: "chat-log", id: "chat-log", "aria-live": "polite" }),
         h("div", { class: "voice-bar" },
           h("button", { class: "mic-btn", id: "mic-btn", type: "button", "aria-label": "Ask by voice", onclick: () => voice.toggleListen() },
             h("span", { class: "mic-icon", html: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V20h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.07A7 7 0 0 1 5 11a1 1 0 1 1 2 0 5 5 0 0 0 10 0Z"/></svg>' }),
-            h("span", { class: "mic-label", id: "mic-label" }, "बोलकर पूछें · Ask by voice"))),
+            h("span", { class: "mic-label", id: "mic-label" }, "Ask by voice"))),
+        h("div", { class: "chat-files", id: "chat-files", hidden: true }),
         h("form", { class: "chat-input", onsubmit: (e) => { e.preventDefault(); chatSend(); } },
+          h("input", { type: "file", id: "chat-file", hidden: true, multiple: true, accept: "application/pdf,image/png,image/jpeg,image/webp,image/gif", onchange: (e) => attachFiles(e.target) }),
+          h("button", { class: "attach-btn", type: "button", title: "Attach a PDF or photo (Form 16, salary slip…)", "aria-label": "Attach a PDF or photo", onclick: () => $("#chat-file").click() }, "📎"),
           h("textarea", {
-            id: "chat-text", rows: 2, placeholder: "प्रश्न लिखें या बोलें — किसी भी भाषा में · Type or speak in any language",
+            id: "chat-text", rows: 2, placeholder: "Type or speak your question — any language",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
           }),
-          h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "भेजें")),
+          h("button", { class: "btn primary", id: "chat-send", type: "submit" }, "Send")),
         h("div", { class: "chat-remaining", id: "chat-remaining", hidden: true })));
     chatRender();
   }
@@ -1273,7 +1339,46 @@
     S.chat.messages = []; S.chat.view = [];
     chatSave(); chatRender();
   }
-  function chatSave() { session.set("gg-chat", { messages: S.chat.messages, view: S.chat.view }); }
+  // Attached files stay in memory for this conversation; the copy kept across reloads drops their contents
+  // (they're too large for browser storage), leaving a note in their place.
+  function chatSave() {
+    const slim = S.chat.messages.map((m) => (Array.isArray(m.content) && m.role === "user"
+      ? { ...m, content: m.content.map((b) => (b.type === "document" || b.type === "image"
+        ? { type: "text", text: `[file attached earlier${b.title ? ": " + b.title : ""} — attach it again if it's needed]` } : b)) }
+      : m));
+    session.set("gg-chat", { messages: slim, view: S.chat.view });
+  }
+
+  const MAX_FILE_BYTES = 8 * 1024 * 1024, MAX_FILES = 3;
+  async function attachFiles(input) {
+    const picked = [...input.files];
+    input.value = "";
+    S.chat.files = S.chat.files || [];
+    for (const f of picked) {
+      if (S.chat.files.length >= MAX_FILES) { toast(`Up to ${MAX_FILES} files at a time.`, "error"); break; }
+      if (!/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(f.type)) { toast(`${f.name}: only PDF or image files can be attached.`, "error"); continue; }
+      if (f.size > MAX_FILE_BYTES) { toast(`${f.name} is larger than 8 MB.`, "error"); continue; }
+      const data = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1]);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(f);
+      }).catch(() => null);
+      if (data) S.chat.files.push({ name: f.name, type: f.type, size: f.size, data });
+    }
+    renderFiles();
+    $("#chat-text").focus();
+  }
+  function renderFiles() {
+    const box = $("#chat-files");
+    if (!box) return;
+    const files = S.chat.files || [];
+    box.hidden = !files.length;
+    box.replaceChildren(...files.map((f, i) => h("span", { class: "file-chip" },
+      `${f.type === "application/pdf" ? "📄" : "🖼"} ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`,
+      h("button", { type: "button", title: "Remove", onclick: () => { S.chat.files.splice(i, 1); renderFiles(); } }, "✕"))),
+      files.length ? h("small", { class: "muted" }, "Files are sent to the AI only to answer you; this site doesn't store them.") : null);
+  }
 
   function chatRender() {
     const log = $("#chat-log");
@@ -1281,15 +1386,18 @@
     const left = $("#chat-remaining");
     if (left) {
       left.hidden = ADMIN || S.chat.remaining == null;
-      left.textContent = `आज शेष प्रश्न: ${S.chat.remaining} · Questions left today`;
+      left.textContent = `Questions left today: ${S.chat.remaining}`;
     }
     if (!S.chat.view.length) {
-      const ideas = ["कर्मयोग क्या है? सरल भाषा में समझाइए।", "मन बहुत चंचल है — गीता इसे वश में करने के क्या उपाय बताती है?", "Explain 2.47 in depth with examples from daily life.", "स्थितप्रज्ञ के लक्षण क्या हैं?"];
+      const ideas = ["What is Karma Yoga? Explain simply.", "My salary is ₹15 lakh — which regime is cheaper for me?", "📎 Attach my Form 16 and work out my tax", "What can the Gita teach us about investing? Show me the videos."];
       log.replaceChildren(h("div", { class: "chat-welcome" },
-        h("p", null, `नमस्ते ${S.name} 🙏`),
-        h("p", null, "मैं गीता सखा हूँ। गीता के किसी भी श्लोक, विषय या जीवन से जुड़े प्रश्न पर विस्तार से चर्चा कर सकते हैं।"),
-        h("p", { class: "muted" }, "किसी भी भाषा में लिखें या 🎤 दबाकर बोलें — भाषा अपने-आप पहचानी जाएगी। Type or speak in any language — it's detected automatically."),
-        h("div", { class: "ideas" }, ideas.map((q) => h("button", { class: "chip", onclick: () => { $("#chat-text").value = q; chatSend(); } }, q)))));
+        h("p", null, `Namaste ${S.name} 🙏`),
+        h("p", null, "I'm Saarthi — here to help with the Gita's verses and life questions, your income tax, and the Gita se Capital Market tak videos. Attach a Form 16, salary slip or other document with 📎 and I'll read it and fill in the tax calculator for you."),
+        h("p", { class: "muted" }, "Type, or tap 🎤 and speak, in any language — it's detected automatically, and I reply in the same language."),
+        h("div", { class: "ideas" }, ideas.map((q) => h("button", {
+          class: "chip",
+          onclick: () => { if (q.startsWith("📎")) { $("#chat-text").value = q.slice(2).trim(); $("#chat-file").click(); } else { $("#chat-text").value = q; chatSend(); } },
+        }, q)))));
       return;
     }
     log.replaceChildren(...S.chat.view.map((m, i) => {
@@ -1301,24 +1409,32 @@
         h("div", { class: "prose", html: html || "<span class='typing'>…</span>" }),
         html && voice.canSpeak ? h("button", {
           class: `speak-btn ${voice.speakingId === i ? "on" : ""}`, type: "button",
-          title: "सुनें · Read aloud", onclick: () => voice.toggleSpeak(i, html),
-        }, voice.speakingId === i ? "⏹ रोकें" : "🔊 सुनें") : null);
+          title: "Read aloud", onclick: () => voice.toggleSpeak(i, html),
+        }, voice.speakingId === i ? "⏹ Stop" : "🔊 Listen") : null);
     }));
     log.scrollTop = log.scrollHeight;
   }
 
   async function chatSend() {
     const ta = $("#chat-text");
-    const text = ta.value.trim();
-    if (!text || S.chat.busy) return;
+    let text = ta.value.trim();
+    const files = S.chat.files || [];
+    if ((!text && !files.length) || S.chat.busy) return;
     if (!S.config.chatUrl) {
+      if (files.length) { toast("Reading files needs the AI assistant to be connected.", "error"); return; }
       S.chat.view.push({ role: "user", text }, { role: "bot", text: offlineAnswer(text) });
       ta.value = ""; chatSave(); chatRender(); return;
     }
+    if (files.length && !text) text = "Please read this document, work out my income tax and fill in the calculator.";
     ta.value = "";
+    S.chat.files = []; renderFiles();
     S.chat.busy = true; $("#chat-send").disabled = true;
-    S.chat.messages.push({ role: "user", content: text });
-    S.chat.view.push({ role: "user", text });
+    // Files go first, then the question (PDFs as document blocks, photos as image blocks).
+    const content = files.length ? [...files.map((f) => (f.type === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data }, title: f.name }
+      : { type: "image", source: { type: "base64", media_type: f.type, data: f.data } })), { type: "text", text }] : text;
+    S.chat.messages.push({ role: "user", content });
+    S.chat.view.push({ role: "user", text: [...files.map((f) => `📎 ${f.name}`), text].join("\n") });
     const historyMark = S.chat.messages.length - 1;
     try {
       for (let turn = 0; turn < TOOL_LIMIT; turn++) {
@@ -1329,12 +1445,12 @@
         if (!bubble.text) S.chat.view.splice(S.chat.view.indexOf(bubble), 1);
         if (stopReason === "refusal") {
           S.chat.messages.length = historyMark; // drop this exchange from what we send next time
-          S.chat.view.push({ role: "error", text: "क्षमा करें, इस प्रश्न का उत्तर मैं नहीं दे सकता। कृपया प्रश्न दूसरे ढंग से पूछें।" });
+          S.chat.view.push({ role: "error", text: "Sorry, I can't answer that. Please try asking in a different way." });
           break;
         }
         S.chat.messages.push({ role: "assistant", content });
         if (stopReason !== "tool_use") {
-          if (stopReason === "max_tokens") S.chat.view.push({ role: "error", text: "(उत्तर लंबा होने के कारण यहीं रुका — “आगे बताइए” लिखें।)" });
+          if (stopReason === "max_tokens") S.chat.view.push({ role: "error", text: "(The answer was cut short because it got long — type “continue”.)" });
           break;
         }
         const results = [];
@@ -1349,11 +1465,11 @@
       }
     } catch (e) {
       S.chat.messages.length = historyMark;
-      console.warn("Gita Sakha AI unavailable:", e.message);
+      console.warn("Saarthi AI unavailable:", e.message);
       S.chat.view = S.chat.view.filter((m) => !(m.role === "bot" && !m.text)); // drop the empty "typing" bubble
       const note = e.dailyLimit
-        ? `आज के प्रश्नों की सीमा${typeof e.dailyLimit === "number" ? ` (${e.dailyLimit})` : ""} पूरी हो गई — कल फिर पूछें। तब तक गीता से सीधे उत्तर:`
-        : "AI अभी उपलब्ध नहीं है — गीता से सीधे उत्तर:";
+        ? `You've reached today's limit${typeof e.dailyLimit === "number" ? ` of ${e.dailyLimit} questions` : ""} — please come back tomorrow. Meanwhile, straight from the Gita:`
+        : "The AI isn't available right now — straight from the Gita:";
       if (e.dailyLimit) S.chat.remaining = 0;
       S.chat.view.push({ role: "tool", text: note }, { role: "bot", text: offlineAnswer(text) });
     } finally {
@@ -1362,41 +1478,41 @@
     }
   }
 
-  /* Built-in Gita Sakha: answers straight from the site's text when the AI worker
+  /* Built-in Saarthi: answers straight from the site's text when the AI worker
    * isn't connected (or can't be reached) — topic guide + verse lookup + search. */
   const TOPICS = [
     { hi: "कर्म और कर्तव्य", en: "Action & duty", keys: ["कर्म", "कर्तव्य", "काम कैसे", "karma", "karm", "duty", "work", "action", "फल"], refs: ["2.47", "2.48", "3.8", "3.19", "18.47"],
-      note: "गीता का मूल संदेश — कर्म पूरे मन से करो, पर फल की चिंता और आसक्ति छोड़ दो।" },
+      note: "The Gita's core message — act with your whole heart, but let go of worry about, and attachment to, the result." },
     { hi: "मन को वश में करना", en: "Mastering the mind", keys: ["मन", "चंचल", "ध्यान", "एकाग्र", "mind", "mann", "man ko", "focus", "concentrat", "meditat", "dhyan"], refs: ["6.5", "6.6", "6.26", "6.34", "6.35"],
-      note: "मन चंचल है, पर अभ्यास और वैराग्य से वश में आता है — और मनुष्य स्वयं ही अपना मित्र है।" },
+      note: "The mind is restless, but practice and detachment bring it under control — and each of us is our own best friend." },
     { hi: "क्रोध", en: "Anger", keys: ["क्रोध", "गुस्सा", "गुस्से", "anger", "angry", "gussa", "krodh"], refs: ["2.62", "2.63", "3.37", "16.21"],
-      note: "विषयों के चिंतन से आसक्ति, आसक्ति से कामना और कामना से क्रोध जन्म लेता है — इस शृंखला को पहचानना ही पहला उपाय है।" },
+      note: "Dwelling on objects breeds attachment, attachment breeds desire, and desire breeds anger — seeing this chain is the first remedy." },
     { hi: "चिंता, भय और तनाव", en: "Worry, fear & stress", keys: ["चिंता", "डर", "भय", "तनाव", "परेशान", "fear", "worry", "anxiety", "stress", "tension", "chinta", "dar "], refs: ["2.14", "2.56", "9.22", "18.66"],
-      note: "सुख-दुःख आते-जाते हैं; जो भगवान की शरण लेता है, उसके योगक्षेम का भार वे स्वयं उठाते हैं।" },
+      note: "Joy and sorrow come and go; whoever takes refuge in the Lord, He Himself carries their welfare." },
     { hi: "दुःख और शोक", en: "Grief & sorrow", keys: ["दुःख", "दुख", "शोक", "उदास", "sad", "grief", "sorrow", "depress", "dukh"], refs: ["2.11", "2.14", "2.15", "6.22", "6.23"],
-      note: "ज्ञानी न गए हुओं के लिए शोक करते हैं, न रहने वालों के लिए — सुख-दुःख में सम रहने वाला ही अमरता का अधिकारी है।" },
+      note: "The wise grieve neither for those who have gone nor for those who remain — one who stays even in joy and sorrow is fit for immortality." },
     { hi: "मृत्यु और आत्मा", en: "Death & the Self", keys: ["मृत्यु", "मौत", "मरना", "आत्मा", "पुनर्जन्म", "death", "die", "soul", "atma", "rebirth", "reincarnat"], refs: ["2.20", "2.22", "2.23", "2.27", "8.6"],
-      note: "आत्मा न जन्मती है न मरती है — जैसे मनुष्य पुराने वस्त्र बदलता है, वैसे ही आत्मा शरीर बदलती है।" },
+      note: "The Self is never born and never dies — just as we change old clothes, the Self changes bodies." },
     { hi: "भक्ति", en: "Devotion", keys: ["भक्ति", "भक्त", "पूजा", "प्रेम", "प्रार्थना", "bhakti", "devotion", "devotee", "worship", "prayer", "love god"], refs: ["9.22", "9.26", "12.13", "12.14", "18.65"],
-      note: "प्रेम से अर्पित एक पत्ता, फूल, फल या जल भी भगवान स्वीकार करते हैं — भक्त के लक्षण अध्याय 12 में सुंदरता से बताए गए हैं।" },
+      note: "Even a leaf, a flower, a fruit or water offered with love is accepted by the Lord — Chapter 12 beautifully describes the qualities of a devotee." },
     { hi: "शरणागति", en: "Surrender", keys: ["शरण", "समर्पण", "surrender", "sharan", "refuge"], refs: ["18.66", "18.62", "7.14", "9.34"],
-      note: "गीता का अंतिम और परम उपदेश — सब छोड़कर मेरी शरण में आओ, मैं तुम्हें सब पापों से मुक्त कर दूँगा।" },
+      note: "The Gita's final and highest teaching — leave everything and take refuge in Me; I will free you from all sins." },
     { hi: "सफलता, असफलता और समता", en: "Success, failure & equanimity", keys: ["सफल", "असफल", "हार", "जीत", "समता", "success", "fail", "exam", "result", "equanim", "balance"], refs: ["2.38", "2.48", "2.50", "6.9", "12.18"],
-      note: "सफलता और असफलता में सम रहना ही योग है — और कर्मों में कुशलता भी योग है।" },
+      note: "Staying even in success and failure is yoga — and skill in action is yoga too." },
     { hi: "कामना, लोभ और इंद्रियाँ", en: "Desire, greed & the senses", keys: ["इच्छा", "कामना", "लोभ", "लालच", "इंद्रिय", "desire", "greed", "lust", "senses", "temptation", "addiction"], refs: ["3.37", "3.39", "3.41", "2.70", "16.21"],
-      note: "काम, क्रोध और लोभ नरक के तीन द्वार हैं; इंद्रियों को वश में करके ही इस शत्रु को जीता जाता है।" },
+      note: "Lust, anger and greed are the three gates to hell; this enemy is conquered by mastering the senses." },
     { hi: "स्थितप्रज्ञ", en: "The person of steady wisdom", keys: ["स्थितप्रज्ञ", "स्थिर बुद्धि", "sthitaprajna", "sthitpragya", "steady wisdom"], refs: ["2.54", "2.55", "2.56", "2.57", "2.58"],
-      note: "अर्जुन के प्रश्न पर श्रीकृष्ण अध्याय 2 के अंत में स्थिर बुद्धि वाले मनुष्य के लक्षण बताते हैं।" },
+      note: "Answering Arjuna's question, Shri Krishna describes the person of steady wisdom at the end of Chapter 2." },
     { hi: "ज्ञान और गुरु", en: "Knowledge & the teacher", keys: ["ज्ञान", "गुरु", "सीख", "knowledge", "wisdom", "guru", "teacher", "learn"], refs: ["4.34", "4.38", "4.39", "13.8"],
-      note: "ज्ञान विनम्रता, प्रश्न और सेवा से ज्ञानी गुरु से प्राप्त होता है — और ज्ञान के समान पवित्र कुछ नहीं।" },
+      note: "Knowledge comes from a wise teacher through humility, questions and service — and nothing is as purifying as knowledge." },
     { hi: "धर्म और अवतार", en: "Dharma & divine descent", keys: ["धर्म", "अवतार", "स्वधर्म", "dharma", "avatar", "righteous"], refs: ["4.7", "4.8", "3.35", "18.47"],
-      note: "जब-जब धर्म की हानि होती है, भगवान प्रकट होते हैं — और अपना धर्म, गुणरहित भी हो, दूसरे के धर्म से श्रेष्ठ है।" },
+      note: "Whenever dharma declines, the Lord appears — and one's own dharma, even imperfect, is better than another's." },
     { hi: "आहार और संयमित जीवन", en: "Food & balanced living", keys: ["आहार", "भोजन", "खाना", "नींद", "food", "diet", "eat", "sleep"], refs: ["6.16", "6.17", "17.8", "17.9", "17.10"],
-      note: "योग न बहुत खाने वाले का सधता है, न बिल्कुल न खाने वाले का — संतुलित आहार-विहार दुःख मिटाने वाला है।" },
+      note: "Yoga isn't for one who eats too much or too little — balanced food and rest end sorrow." },
     { hi: "तीन गुण", en: "The three gunas", keys: ["गुण", "सत्त्व", "रजो", "तमो", "guna", "sattva", "rajas", "tamas"], refs: ["14.5", "14.6", "14.7", "14.8", "14.20"],
-      note: "सत्त्व, रज और तम आत्मा को बाँधते हैं; इनसे ऊपर उठने वाला गुणातीत अमृत को पाता है।" },
+      note: "Sattva, rajas and tamas bind the Self; one who rises above them attains immortality." },
     { hi: "भगवान का स्वरूप", en: "Who is God?", keys: ["भगवान", "ईश्वर", "परमात्मा", "विश्वरूप", "god", "krishna", "ishwar", "divine", "vishwaroop", "universal form"], refs: ["7.7", "10.8", "10.20", "11.12", "15.15"],
-      note: "सारा जगत भगवान में धागे में मणियों की तरह पिरोया है; वे सबके हृदय में स्थित हैं।" },
+      note: "The whole world is strung on the Lord like pearls on a thread; He dwells in every heart." },
   ];
 
   function shlokBlock(ref) {
@@ -1404,12 +1520,18 @@
     const s = findShlok(c, v);
     if (!s) return "";
     const sa = s.sa.split("\n").map((l) => `> ${l}`).join("\n");
-    return `#### श्लोक [${ref}](#/c/${c}/${v})\n${sa}\n\n**भावार्थ:** ${s.hi}${s.en ? `\n\n*English:* ${s.en}` : ""}`;
+    return `#### Shlok [${ref}](#/c/${c}/${v})\n${sa}${s.en ? `\n\n**English:** ${s.en}` : ""}\n\n*Hindi meaning:* ${s.hi}`;
   }
 
   function offlineAnswer(question) {
     const q = fold(question);
-    const footer = "\n\n---\n*यह गीता सखा का बुनियादी मोड है — उत्तर सीधे गीता के श्लोकों से। गहरी चर्चा (प्रश्न-उत्तर, उदाहरण, टीकाएँ) के लिए AI जुड़ने पर पूरा मोड चालू हो जाएगा।*";
+    if (/(tax|itr|form ?16|आयकर|टैक्स|इनकम|रिजीम|regime)/i.test(question)) {
+      return "### Income Tax Calculator\n[Open the Income Tax Calculator](#/tax) to work out your tax — it compares the new and old regimes, with print and PDF.\n\n*When the AI is connected, Saarthi can read your Form 16 and fill in the calculator for you.*";
+    }
+    if (/(video|वीडियो|market|मार्केट|निवेश|invest|shares?|silver|सिल्वर)/i.test(question)) {
+      return "### Gita se Capital Market tak\n[Watch the JMJ Wealth Creator videos here](#/videos). (For educational purposes only; not buy/sell advice.)";
+    }
+    const footer = "\n\n---\n*This is Saarthi's basic mode — answers come straight from the Gita's verses. Deeper discussion (follow-up questions, examples, commentary) switches on when the AI is connected.*";
     const refs = [...question.matchAll(/\b(\d{1,2})[.:](\d{1,2})\b/g)].map((m) => `${+m[1]}.${+m[2]}`).filter((r) => findShlok(...r.split(".").map(Number)));
     if (refs.length) {
       return refs.slice(0, 4).map(shlokBlock).join("\n\n") + footer;
@@ -1417,20 +1539,20 @@
     const chMatch = question.match(/(?:अध्याय|chapter|adhyay)\s*(\d{1,2})/i);
     if (chMatch && findChapter(+chMatch[1])) {
       const c = findChapter(+chMatch[1]);
-      return `### अध्याय ${c.n} · ${c.sa}\n**${c.hi}** · *${c.en}* · ${c.shlokas.length} श्लोक\n\n${c.sum_hi}\n\n*${c.sum_en}*\n\n[पूरा अध्याय पढ़ें →](#/c/${c.n})` + footer;
+      return `### Chapter ${c.n} · ${c.sa}\n**${c.en}** · *${c.hi}* · ${c.shlokas.length} shlokas\n\n${c.sum_en}\n\n*${c.sum_hi}*\n\n[Read the whole chapter →](#/c/${c.n})` + footer;
     }
     const scored = TOPICS.map((t) => ({ t, score: t.keys.reduce((n, k) => n + (q.includes(fold(k)) ? 1 : 0), 0) }))
       .filter((x) => x.score).sort((a, b) => b.score - a.score);
     if (scored.length) {
       const t = scored[0].t;
-      return `### ${t.hi} · ${t.en}\n${t.note}\n\n` + t.refs.slice(0, 4).map(shlokBlock).join("\n\n") +
-        (scored[1] ? `\n\nसंबंधित विषय: **${scored[1].t.hi}** — पूछें "${scored[1].t.hi}"` : "") + footer;
+      return `### ${t.en} · ${t.hi}\n${t.note}\n\n` + t.refs.slice(0, 4).map(shlokBlock).join("\n\n") +
+        (scored[1] ? `\n\nRelated topic: **${scored[1].t.en}** — ask about "${scored[1].t.en}"` : "") + footer;
     }
     const hits = tools.search_gita({ query: question }).results.slice(0, 3);
     if (hits.length) {
-      return "आपके प्रश्न से जुड़े श्लोक:\n\n" + hits.map((h) => shlokBlock(h.ref)).join("\n\n") + footer;
+      return "Shlokas related to your question:\n\n" + hits.map((h) => shlokBlock(h.ref)).join("\n\n") + footer;
     }
-    return "इस प्रश्न से मेल खाता श्लोक नहीं मिला। कोई विषय लिखकर देखें — जैसे **कर्म**, **मन**, **क्रोध**, **चिंता**, **भक्ति**, **मृत्यु**, **शरणागति** — या श्लोक संख्या जैसे **2.47**, या **अध्याय 12**।" + footer;
+    return "I couldn't find a shlok matching that. Try a topic — like **karma**, **mind**, **anger**, **worry**, **devotion**, **death**, **surrender** — or a verse number like **2.47**, or **chapter 12**." + footer;
   }
 
   /* One streamed Messages API turn through the worker. Rebuilds every content block

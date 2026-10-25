@@ -245,6 +245,14 @@ mark { background: var(--accent-soft); color: inherit; padding: 0 .1em; border-r
 .chat-input { display: flex; gap: .5rem; padding: .6rem .7rem .7rem; align-items: flex-end; }
 .chat-input textarea { flex: 1; resize: none; font: inherit; font-size: .97rem; padding: .55rem .7rem; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-height: 140px; }
 .chat-input textarea:focus { outline: 2px solid var(--accent); }
+.attach-btn { flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font-size: 1.05rem; }
+.attach-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.chat-files { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; padding: .5rem .7rem 0; }
+.chat-files[hidden] { display: none; }
+.chat-files small { flex-basis: 100%; font-size: .75rem; }
+.file-chip { display: inline-flex; align-items: center; gap: .35rem; max-width: 100%; padding: .2rem .25rem .2rem .6rem; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--maroon); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: 50%; width: 1.4rem; height: 1.4rem; }
+.file-chip button:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .voice-bar { display: flex; align-items: center; gap: .6rem; padding: .6rem .7rem 0; border-top: 1px solid var(--line); }
 .mic-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: .5rem; padding: .55rem .9rem; border-radius: 999px;
   border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--maroon); font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer; }

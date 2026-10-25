@@ -148,40 +148,40 @@
   /* ---------- page ---------- */
   const STORE_KEY = "skc-tax-saved-v1";
   const FIELDS = [
-    ["Basic details", "मूल विवरण", [
+    ["Basic details", "", [
       ["name", "Name (optional)", "text"],
-      ["age", "Age category · आयु", [["0", "Below 60"], ["1", "60 to 80 (Senior)"], ["2", "80 and above (Super senior)"]]],
+      ["age", "Age category", [["0", "Below 60"], ["1", "60 to 80 (Senior)"], ["2", "80 and above (Super senior)"]]],
       ["res", "Residential status", [["1", "Resident"], ["0", "Non-resident"]]],
     ], "Tax year 2026-27 = 1 Apr 2026 – 31 Mar 2027 (Income-tax Act, 2025). Section numbers are the familiar 1961-Act references; the new Act renumbers them. Rates as per Finance Act 2026 — unchanged from FY 2025-26. Senior / super-senior benefits apply to residents only."],
-    ["1. Salary", "वेतन", [
+    ["1. Salary", "", [
       ["sal", "Gross salary (incl. perquisites)"],
       ["salex", "Exempt allowances u/s 10 (HRA, LTA…) — old regime only"],
       ["pt", "Professional tax u/s 16(iii) — old regime only"],
       ["basic", "Basic + DA (for the 80CCD(2) cap) — blank = gross salary"],
     ], "Standard deduction u/s 16(ia) is applied automatically: ₹75,000 (new) / ₹50,000 (old)."],
-    ["2. House property", "गृह सम्पत्ति", [
+    ["2. House property", "", [
       ["hpt", "Type", [["none", "None"], ["so", "Self-occupied"], ["lo", "Let-out"]]],
       ["rent", "Annual rent received (let-out)"],
       ["mun", "Municipal tax paid (let-out)"],
       ["hli", "Home-loan interest u/s 24(b)"],
     ], "Let-out: NAV − 30% − interest. Self-occupied interest: up to ₹2,00,000 (old regime only). House-property loss set-off against other heads: up to ₹2,00,000 (old regime); not allowed in the new regime."],
-    ["3. Business / profession", "व्यापार / पेशा", [
+    ["3. Business / profession", "", [
       ["bt", "Method", [["np", "Regular — net profit"], ["ad", "Presumptive 44AD (business)"], ["ada", "Presumptive 44ADA (profession)"]]],
       ["np", "Net profit (regular) — enter a loss with a minus sign"],
       ["tod", "44AD turnover — digital / bank (6%)"],
       ["toc", "44AD turnover — cash (8%)"],
       ["gr", "44ADA gross receipts (50%)"],
     ], "Presumptive income is computed at the minimum rate; if you declare more, use net profit. A business loss is set off against other income except salary, then against capital gains; the rest is shown as carried forward."],
-    ["4. Capital gains", "पूंजीगत लाभ", [
+    ["4. Capital gains", "", [
       ["stcg111a", "STCG u/s 111A (listed equity / equity funds, STT) — 20%"],
       ["stcgo", "Other STCG — slab rates"],
       ["ltcg112a", "LTCG u/s 112A (equity) — 12.5% above ₹1.25 lakh"],
       ["ltcg112", "Other LTCG u/s 112 — 12.5%"],
     ], "Enter net gains after setting off capital losses. Rates apply to transfers on or after 23 Jul 2024. The 87A rebate is not available against tax on these special-rate gains."],
-    ["5. Other sources", "अन्य स्रोत", [
+    ["5. Other sources", "", [
       ["sbint", "Savings bank interest"], ["fdint", "FD / other interest"], ["div", "Dividends"], ["oth", "Other income"],
     ], ""],
-    ["Deductions — Chapter VI-A", "कटौतियाँ (old regime, except 80CCD(2))", [
+    ["Deductions — Chapter VI-A", "old regime only, except 80CCD(2)", [
       ["d80c", "80C / 80CCC / 80CCD(1) — max ₹1.5 lakh"],
       ["d80ccd1b", "80CCD(1B) NPS (own) — max ₹50,000"],
       ["d80ccd2", "80CCD(2) employer NPS — both regimes (cap 14% new / 10% old of basic)"],
@@ -220,7 +220,7 @@
   function render(root) {
     const form = el("div", { id: "tax-form" },
       FIELDS.map(([title, hindi, fields, note]) => el("section", { class: "tax-card" },
-        el("h2", null, title, " ", el("span", { class: "muted" }, hindi)),
+        el("h2", null, title, hindi ? el("span", { class: "muted" }, " " + hindi) : null),
         el("div", { class: "tax-grid" }, fields.map(([id, label, opts]) => el("label", { class: "field" },
           el("span", null, label),
           Array.isArray(opts)
@@ -228,13 +228,13 @@
             : el("input", { id: `tx-${id}`, type: "text", inputmode: opts === "text" ? null : "decimal", autocomplete: "off" })))),
         note ? el("p", { class: "muted tax-note" }, note) : null)),
       el("div", { class: "tax-actions noprint" },
-        el("button", { class: "btn primary", type: "button", onclick: run }, "गणना करें · Compute tax"),
+        el("button", { class: "btn primary", type: "button", onclick: run }, "Compute tax"),
         el("button", { class: "btn", type: "button", onclick: sample }, "Fill sample"),
         el("button", { class: "btn", type: "button", onclick: reset }, "Reset")));
-    const saved = el("section", { class: "tax-card noprint", id: "tax-saved" }, el("h2", null, "Saved computations ", el("span", { class: "muted" }, "सहेजी गई गणनाएँ")), el("div", { id: "tax-slist", class: "muted" }));
+    const saved = el("section", { class: "tax-card noprint", id: "tax-saved" }, el("h2", null, "Saved computations"), el("div", { id: "tax-slist", class: "muted" }));
     const out = el("div", { id: "tax-out" });
     root.replaceChildren(
-      el("h1", { class: "page-title" }, "आयकर गणना · Income Tax Calculator"),
+      el("h1", { class: "page-title" }, "Income Tax Calculator"),
       el("p", { class: "muted" }, "Individuals · Tax Year 2026-27 · old vs new regime, with a printable computation."),
       form, saved, out,
       el("p", { class: "tax-disc" }, el("b", null, "Disclaimer: "), "An estimate for general guidance only, not tax advice. It does not cover every provision (clubbing, brought-forward losses, AMT, agricultural income, relief u/s 89, every condition of each deduction, NRI special rates). Verify with a qualified professional or the Income Tax Department's calculator before filing."));
@@ -402,5 +402,18 @@
     doc.save(fname("pdf"));
   }
 
-  window.GGTax = { render, TAX };
+  /* Hooks for Saarthi: fill the calculator with figures (e.g. read from a Form 16) and read what's on it. */
+  function prefill(d) {
+    last = Object.fromEntries(KEYS.map((k) => [k, d[k] == null ? "" : String(d[k])]));
+    lastResult = TAX.both(last);
+    const root = document.querySelector(".tax-page");
+    if (root && root.isConnected) render(root);   // already on the page: redraw with the new figures
+    return lastResult;
+  }
+  function current() {
+    const onPage = !!$("sal");
+    return { inputs: onPage ? data() : last, result: lastResult };
+  }
+
+  window.GGTax = { render, TAX, KEYS, prefill, current };
 })();
