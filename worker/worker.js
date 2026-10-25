@@ -167,11 +167,11 @@ const TOOLS = [
   },
   {
     name: "open_page",
-    description: "Open a page of the site for the person: home, chapters, a chapter or verse, tax calculator, bank statement analyzer, Bihar tenders, market scanner, management services (optionally one tool), Bihar vision documents, documents & news library, or videos.",
+    description: "Open a page of the site for the person: home (all services), gita (the Gita section's front page), chapters, a chapter or verse, tax calculator, bank statement analyzer, Bihar tenders, market scanner, management services (optionally one tool), Bihar vision documents, documents & news library, or videos.",
     input_schema: {
       type: "object",
       properties: {
-        page: { type: "string", enum: ["home", "chapters", "chapter", "tax", "bank", "tenders", "scanner", "management", "vision", "library", "videos"] },
+        page: { type: "string", enum: ["home", "gita", "chapters", "chapter", "tax", "bank", "tenders", "scanner", "management", "vision", "library", "videos"] },
         chapter: { type: "integer", description: "For page = chapter" },
         verse: { type: "integer", description: "Optional verse within the chapter" },
         tool: { type: "string", enum: ["capital", "business", "capex", "goals", "efficiency"], description: "For page = management: open this tool" },
