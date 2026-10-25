@@ -89,7 +89,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 .brand { display: flex; align-items: center; gap: .45rem; color: var(--maroon); font-family: var(--f-sa); font-size: 1.35rem; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand-om { color: var(--accent); }
-.main-nav a { color: var(--ink-2); font-weight: 500; }
+.main-nav { display: flex; gap: 1.1rem; flex-wrap: nowrap; }
+.main-nav a { color: var(--ink-2); font-weight: 500; white-space: nowrap; }
 .search { margin-left: auto; flex: 0 1 260px; min-width: 0; }
 .search input { width: 100%; padding: .45rem .8rem; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: .9rem; }
 .menu { position: relative; }
@@ -268,3 +269,58 @@ mark { background: var(--accent-soft); color: inherit; padding: 0 .1em; border-r
   .fab-label { display: none; }
   .chat-fab { padding: .85rem 1rem; }
 }
+
+/* services: home cards */
+.service-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .8rem; }
+.service-card { padding-left: 4.2rem; min-height: 96px; justify-content: center; }
+.service-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 2.4rem; height: 2.4rem; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 1.15rem; }
+
+/* income tax calculator */
+.tax-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0; }
+.tax-card h2 { margin: 0 0 .7rem; font-size: 1.05rem; color: var(--maroon); }
+.tax-card h2 .muted { font-weight: 400; font-size: .85rem; }
+.tax-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .7rem 1rem; }
+.tax-grid select { width: 100%; font: inherit; font-size: .95rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .5rem .6rem; }
+.tax-note { margin: .7rem 0 0; font-size: .82rem; }
+.tax-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: 1rem 0; }
+.tax-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: .6rem 0; }
+.tax-reg { text-align: center; border: 1px solid var(--line); border-radius: 12px; padding: .8rem; background: var(--bg); }
+.tax-reg b { display: block; font-size: 1.5rem; color: var(--maroon); margin-top: .2rem; }
+.tax-reg.best { border: 2px solid var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--card)); }
+.tax-rec { text-align: center; font-weight: 600; color: var(--ok); font-size: 1.05rem; }
+.tax-cmp h3 { font-size: .95rem; color: var(--maroon); margin: .4rem 0; }
+.tax-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.tax-table td { padding: .28rem .4rem; border-bottom: 1px dotted var(--line); vertical-align: top; }
+.tax-table td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tax-table td.ind { padding-left: 1.2rem; }
+.tax-table tr.h td { font-weight: 600; color: var(--maroon); background: var(--accent-soft); }
+.tax-table tr.t td { font-weight: 600; border-top: 1px solid var(--muted); }
+.tax-table .btn { margin-left: .3rem; }
+.tax-disc { font-size: .8rem; color: var(--ink-2); background: var(--accent-soft); border-left: 3px solid var(--accent); padding: .6rem .8rem; border-radius: 0 8px 8px 0; margin: 1rem 0; }
+
+/* gita se capital market tak */
+.video-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0; }
+.video-card h2 { margin: 0 0 .7rem; font-size: 1.05rem; color: var(--maroon); }
+.video-card h2 .muted { font-weight: 400; font-size: .82rem; }
+.video-frame { position: relative; padding-top: 56.25%; border-radius: 10px; overflow: hidden; background: #000; }
+.video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-desc { margin: .7rem 0 .2rem; line-height: 1.7; }
+
+@media (max-width: 640px) {
+  .tax-cmp { grid-template-columns: 1fr; }
+  .tax-card, .video-card { padding: .9rem; }
+}
+
+/* print: on the tax page only the computation is printed */
+@media print {
+  body { background: #fff; }
+  .site-header, .admin-bar, .site-footer, .chat-fab, .chat, .toast { display: none !important; }
+  body[data-route="tax"] #tax-form, body[data-route="tax"] #tax-saved, body[data-route="tax"] .page-title,
+  body[data-route="tax"] .page-title + .muted, body[data-route="tax"] .noprint { display: none !important; }
+  .tax-card { border: 0; padding: 0; }
+  .tax-table tr { page-break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* medium screens: the three header links would crowd the search box — they stay in the ☰ menu */
+@media (max-width: 900px) { .main-nav { display: none; } }

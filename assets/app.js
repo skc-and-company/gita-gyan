@@ -295,6 +295,11 @@
         h("div", { class: "chips" },
           h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
           h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark")),
+        h("div", { class: "menu-label" }, "सेवाएँ · Services"),
+        h("div", { class: "menu-links" },
+          h("a", { href: "#/chapters" }, "📖 अध्याय · Chapters"),
+          h("a", { href: "#/tax" }, "₹ आयकर गणना · Income Tax Calculator"),
+          h("a", { href: "#/videos" }, "▶ गीता से कैपिटल मार्केट तक · Videos")),
         h("div", { class: "menu-label" }, "पृष्ठ · Pages"),
         h("div", { id: "menu-pages", class: "menu-links" }),
         h("hr"),
@@ -303,7 +308,10 @@
       ));
     return h("header", { class: "site-header" },
       h("a", { href: "#/", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
-      h("nav", { class: "main-nav" }, h("a", { href: "#/chapters" }, "अध्याय")),
+      h("nav", { class: "main-nav" },
+        h("a", { href: "#/chapters" }, "अध्याय"),
+        h("a", { href: "#/tax" }, "आयकर गणना"),
+        h("a", { href: "#/videos" }, "गीता से मार्केट तक")),
       search, menu);
   }
 
@@ -348,7 +356,10 @@
     else if (parts[0] === "p" && parts[1]) node = viewPage(decodeURIComponent(parts[1]));
     else if (parts[0] === "search") node = viewSearch(new URLSearchParams(query).get("q") || "");
     else if (parts[0] === "admin" && ADMIN) node = viewSettings();
+    else if (parts[0] === "tax") node = viewTax();
+    else if (parts[0] === "videos") node = viewVideos();
     else node = viewHome();
+    document.body.dataset.route = parts[0] || "home";
     view.replaceChildren(node);
     $(".menu")?.removeAttribute("open");
     if (!rerendering) window.scrollTo(0, 0);
@@ -389,7 +400,89 @@
         shlokCard(findChapter(today.c), today.s, { compact: true })) : null,
       h("section", null,
         h("h2", { class: "section-title" }, `अध्याय · ${chapters().length} Chapters · ${totalShlokas()} श्लोक`),
-        chapterGrid()));
+        chapterGrid()),
+      h("section", null,
+        h("h2", { class: "section-title" }, "सेवाएँ · More from SKC & CO."),
+        h("div", { class: "service-grid" },
+          h("a", { class: "chapter-card service-card", href: "#/tax" },
+            h("span", { class: "service-icon", "aria-hidden": "true" }, "₹"),
+            h("span", { class: "cc-sa" }, "आयकर गणना"),
+            h("span", { class: "cc-en" }, "Income Tax Calculator — Tax Year 2026-27, old vs new regime, printable computation")),
+          h("a", { class: "chapter-card service-card", href: "#/videos" },
+            h("span", { class: "service-icon", "aria-hidden": "true" }, "▶"),
+            h("span", { class: "cc-sa" }, "गीता से कैपिटल मार्केट तक"),
+            h("span", { class: "cc-en" }, "JMJ Wealth Creator videos — गीता की सीख से निवेश की समझ")))));
+  }
+
+  /* ---------- Income Tax Calculator (assets/tax.js) ---------- */
+  function viewTax() {
+    const box = h("div", { class: "tax-page" });
+    if (window.GGTax) window.GGTax.render(box);
+    else box.append(h("p", { class: "missing" }, "Calculator didn't load — please refresh the page."));
+    return box;
+  }
+
+  /* ---------- Gita se Capital Market tak (videos) ---------- */
+  const DEFAULT_VIDEOS = {
+    items: [
+      { id: "6WarPaJ10FU", title: "Silver Seasonal Secrets", type: "Long video", duration: "10:41",
+        desc: "पोर्टफोलियो लाल है? गीता कहती है – कर्म करो, फल की चिंता मत करो। जून-जुलाई में सिल्वर क्यों कमज़ोर होता है, 2021–2025 का डेटा, किश्तों में निवेश, स्टॉप-लॉस, फिज़िकल सिल्वर बनाम सिल्वर ETF।" },
+      { id: "b0KorRf3gb0", title: "The Silver Seasonal Secret", type: "Short", duration: "1:19",
+        desc: "हर साल जून-जुलाई में सिल्वर सस्ता क्यों होता है? 3 कारण, और दिवाली तक धैर्य।" },
+    ],
+    soon: ["स्थितप्रज्ञ निवेशक", "कर्मयोग और रिस्क मैनेजमेंट", "स्वधर्म और एसेट एलोकेशन"],
+    disclaimer: "केवल शैक्षणिक उद्देश्य से; यह बाय/सेल सलाह नहीं है। (For educational purposes only; this is not buy/sell advice.)",
+  };
+  const videosData = () => S.content.videos || DEFAULT_VIDEOS;
+  const youtubeId = (s) => {
+    const t = String(s || "").trim();
+    const m = t.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);
+    return m ? m[1] : /^[\w-]{11}$/.test(t) ? t : "";
+  };
+
+  function viewVideos() {
+    const v = videosData();
+    return h("div", { class: "videos" },
+      editable("videos", () => editVideosForm(),
+        h("div", null,
+          h("h1", { class: "page-title" }, "गीता से कैपिटल मार्केट तक"),
+          h("p", { class: "muted" }, "Gita se Capital Market tak · JMJ Wealth Creator"),
+          v.items.length ? v.items.map((x, i) => h("section", { class: "video-card" },
+            h("h2", null, `Ep ${i + 1} · ${x.title} `, h("span", { class: "muted" }, [x.type, x.duration].filter(Boolean).join(" · "))),
+            h("div", { class: "video-frame" },
+              h("iframe", {
+                src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(x.id)}`, title: x.title, loading: "lazy",
+                allow: "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen", allowfullscreen: true,
+                referrerpolicy: "strict-origin-when-cross-origin",
+              })),
+            x.desc ? h("p", { class: "video-desc" }, x.desc) : null,
+            h("p", { class: "muted" }, h("a", { href: `https://youtu.be/${encodeURIComponent(x.id)}`, target: "_blank", rel: "noopener" }, "YouTube पर देखें · Watch on YouTube ↗"))))
+            : h("p", { class: "missing" }, "अभी कोई वीडियो नहीं है।"),
+          v.soon?.length ? h("section", { class: "video-card" }, h("h2", null, "जल्द आ रहा है · Coming soon"), h("ul", null, v.soon.map((t) => h("li", null, t)))) : null,
+          v.disclaimer ? h("p", { class: "tax-disc" }, h("b", null, "अस्वीकरण / Disclaimer: "), v.disclaimer) : null),
+        "वीडियो संपादित करें · Edit videos"));
+  }
+
+  function editVideosForm() {
+    const v = videosData();
+    return form("वीडियो · Videos", [
+      field("Videos — one per line:  YouTube link | title | type | duration | description", "items",
+        v.items.map((x) => [`https://youtu.be/${x.id}`, x.title, x.type, x.duration, x.desc].join(" | ")).join("\n"),
+        { rows: 8, hint: "Example: https://youtu.be/6WarPaJ10FU | Silver Seasonal Secrets | Long video | 10:41 | short description" }),
+      field("Coming soon — one per line", "soon", (v.soon || []).join("\n"), { rows: 4 }),
+      field("Disclaimer", "disclaimer", v.disclaimer || "", { rows: 2 }),
+    ], {
+      onSave: (d) => {
+        const items = [];
+        for (const line of d.items.split("\n").map((l) => l.trim()).filter(Boolean)) {
+          const [link, title, type, duration, ...desc] = line.split("|").map((x) => x.trim());
+          const id = youtubeId(link);
+          if (!id) { toast(`Couldn't read a YouTube link in: ${line.slice(0, 60)}`, "error"); return false; }
+          items.push({ id, title: title || "Video", type: type || "", duration: duration || "", desc: desc.join(" | ") });
+        }
+        S.content.videos = { items, soon: d.soon.split("\n").map((l) => l.trim()).filter(Boolean), disclaimer: d.disclaimer.trim() };
+      },
+    });
   }
 
   function viewChapters() {
@@ -1413,5 +1506,6 @@
     return { content: blocks.filter(Boolean), stopReason };
   }
 
+  window.GG = { toast };
   boot();
 })();
