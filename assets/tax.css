@@ -1,0 +1,94 @@
+/* Income Tax Calculator (tax.html) — builds on style.css tokens. */
+.tax-sub { margin: -.6rem 0 1rem; }
+.small { font-size: .82rem; }
+
+/* toolbar */
+.tax-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+.tax-savepanel { display: flex; flex-wrap: wrap; gap: .4rem; width: 100%; }
+.tax-savepanel[hidden] { display: none; }
+.tax-savepanel input { flex: 1 1 220px; min-width: 0; padding: .45rem .8rem; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: .92rem; }
+.tax-download { position: relative; }
+.tax-download summary { list-style: none; }
+.tax-download summary::-webkit-details-marker { display: none; }
+.tax-download .menu-panel { left: 0; right: auto; top: 2.6rem; width: 200px; z-index: 15; }
+
+/* layout */
+.tax-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.2rem; align-items: start; }
+.tax-side { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+
+/* form */
+.tax-form { display: flex; flex-direction: column; gap: .6rem; }
+.tax-section { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 1rem; }
+.tax-section[open] { padding-bottom: 1rem; }
+.tax-section summary { cursor: pointer; font-weight: 600; color: var(--maroon); padding: .65rem 0; }
+.tax-section .edit-hint { margin: 0 0 .6rem; }
+.tax-fields { display: flex; flex-direction: column; gap: .6rem; }
+.field select { width: 100%; font: inherit; font-size: .98rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .55rem .7rem; }
+.field select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.pan-input { text-transform: uppercase; }
+.tax-check { display: flex; gap: .5rem; align-items: center; font-size: .85rem; color: var(--ink-2); }
+
+/* summary */
+.tax-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.tax-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; min-width: 0; }
+.tax-card.best { border-color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+.tax-amt { font-family: var(--f-en); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tax-verdict { font-weight: 600; color: var(--ok); margin: .5rem 0 .8rem; }
+
+/* statement */
+.tax-statement { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem; overflow-x: auto; }
+.stmt-head h2 { margin: 0; text-align: center; color: var(--maroon); font-size: 1.15rem; }
+.stmt-head p { margin: .1rem 0 .8rem; text-align: center; color: var(--ink-2); font-size: .9rem; }
+.stmt-meta { display: grid; grid-template-columns: auto 1fr; gap: .15rem .8rem; margin: 0 0 1rem; font-size: .88rem; }
+.stmt-meta dt { color: var(--muted); }
+.stmt-meta dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.stmt-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.stmt-table th, .stmt-table td { padding: .3rem .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.stmt-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stmt-table thead th { background: var(--bg-2); font-size: .8rem; }
+.row-section th { padding-top: .8rem; border-bottom: 0; color: var(--maroon); font-weight: 600; }
+.row-sub td:first-child { padding-left: 1.2rem; color: var(--ink-2); }
+.row-total td { font-weight: 600; }
+.row-grand td { font-weight: 700; background: var(--accent-soft); }
+.stmt-verdict { font-weight: 600; margin: 1rem 0 .4rem; }
+.stmt-notes { padding-left: 1.1rem; font-size: .82rem; color: var(--ink-2); }
+.stmt-disclaimer { margin-top: .8rem; font-size: .75rem; color: var(--muted); }
+.print-only { display: none; }
+
+/* saved computations */
+.tax-saved .section-title { margin-top: 1.4rem; }
+.saved-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .4rem; }
+.saved-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .6rem; padding: .5rem .8rem; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.saved-name { font-weight: 500; overflow-wrap: anywhere; min-width: 0; }
+.saved-actions { display: flex; gap: .3rem; }
+
+@media (max-width: 860px) {
+  .tax-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .tax-statement { padding: .8rem; }
+  .stmt-table { font-size: .8rem; }
+  .stmt-table th, .stmt-table td { padding: .28rem .3rem; }
+  .row-sub td:first-child { padding-left: .7rem; }
+  .tax-amt { font-size: 1.2rem; }
+}
+
+/* print: the statement only, black on white */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  :root, :root[data-theme="dark"] {
+    --bg: #fff; --bg-2: #eee; --card: #fff; --ink: #000; --ink-2: #222; --muted: #444; --line: #bbb;
+    --accent-soft: #eee; --maroon: #000; --accent: #000; color-scheme: light;
+  }
+  html { font-size: 12px; }
+  body { background: #fff; color: #000; }
+  .site-header, .site-footer, .no-print, .toast, .chat, .chat-fab { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .tax-grid { display: block; }
+  .tax-statement { border: 0; padding: 0; overflow: visible; }
+  .print-only { display: block; }
+  .stmt-table tr { break-inside: avoid; }
+  .stmt-table thead { display: table-header-group; }
+  .stmt-table thead th, .row-grand td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .stmt-footer { margin-top: 1.2rem; text-align: center; font-size: 8pt; color: #444; }
+}

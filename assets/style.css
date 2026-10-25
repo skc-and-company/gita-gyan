@@ -89,7 +89,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 .brand { display: flex; align-items: center; gap: .45rem; color: var(--maroon); font-family: var(--f-sa); font-size: 1.35rem; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand-om { color: var(--accent); }
+.main-nav { display: flex; gap: .9rem; white-space: nowrap; }
 .main-nav a { color: var(--ink-2); font-weight: 500; }
+.main-nav a[aria-current="page"], .menu-links a[aria-current="page"] { color: var(--accent); }
+.site-header.simple .menu { margin-left: auto; }
 .search { margin-left: auto; flex: 0 1 260px; min-width: 0; }
 .search input { width: 100%; padding: .45rem .8rem; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: .9rem; }
 .menu { position: relative; }
@@ -143,6 +146,19 @@ main { max-width: 980px; margin: 0 auto; padding: 1.5rem 16px 6rem; }
 .cc-hi { font-weight: 500; font-size: .92rem; }
 .cc-en { font-family: var(--f-en); font-size: .88rem; color: var(--ink-2); font-style: italic; }
 .cc-count { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
+
+/* choice screen (index.html) */
+.hub { text-align: center; padding: 1.5rem 0 1rem; }
+.hub .page-title { margin: .4rem 0 .2rem; }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; max-width: 720px; margin: 1.6rem auto 0; }
+.hub-card {
+  display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1.8rem 1.2rem; background: var(--card);
+  border: 1px solid var(--line); border-radius: 18px; color: var(--ink); box-shadow: var(--shadow); transition: border-color .15s, transform .15s;
+}
+.hub-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; }
+.hub-icon { font-family: var(--f-sa); font-size: 2.6rem; color: var(--accent); line-height: 1; }
+.hub-title { font-weight: 600; font-size: 1.15rem; color: var(--maroon); }
+.hub-sub { font-size: .88rem; color: var(--ink-2); }
 
 /* chapter */
 .chapter-head { text-align: center; padding: 1rem 0 1.5rem; border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; }
