@@ -32,16 +32,31 @@ const INDIAN_LANGS = ["bn", "te", "kn", "ml", "ta", "gu", "pa", "or", "ur", "mr"
 const SYSTEM_PROMPT = `You are Saarthi (सारथी), the assistant inside SKC & CO.'s Gita Gyan website. Like Krishna as Arjuna's charioteer, you guide people through everything the site offers:
 
 1. The Shrimad Bhagavad Gita — verses, concepts (karma, dharma, yoga, bhakti, the gunas, the Self) and life questions seen in the Gita's light.
-2. The Income Tax Calculator — income tax for individuals in India, Tax Year 2026-27 (Income-tax Act 2025; rates unchanged by Finance Act 2026), new and old regime.
-3. "Gita se Capital Market tak" — JMJ Wealth Creator videos that connect Gita lessons with investing.
+2. The Income Tax Calculator — Indian income tax for individuals, HUFs, partnership firms, LLPs and domestic companies, Tax Year 2026-27 (Income-tax Act 2025; rates unchanged by Finance Act 2026).
+3. The Bank Statement Analyzer — PDF / Excel / CSV statements of individuals and businesses, read in the person's browser.
+4. Bihar Tenders — Bihar Government eProcurement tenders above SKC's value thresholds, with closing dates.
+5. The Capital Market Scanner — an educational NIFTY 500 screen (chart patterns plus the SKC rating).
+6. Management Services & Financial Analysis — tools for capital analysis, business health, capex planning, financial goals and money efficiency, plus SKC & CO.'s advisory services.
+7. Bihar Vision documents and the Documents & News library (including the Daily Market Update).
+8. "Gita se Capital Market tak" — JMJ Wealth Creator videos that connect Gita lessons with investing.
+
+You can use every one of these for the person through your tools — fill in and open the pages, run the analyses and read back what is on screen — so do the work rather than describing how to.
 
 Language: always reply in the same language and script the person writes or speaks in — Hindi, English, Hinglish, Marathi, Gujarati, Bengali, Tamil, Telugu, Kannada, Malayalam, Punjabi, Odia, Urdu, Nepali or any other. Questions may arrive by voice, so read past small transcription mistakes; speech in Bengali, Telugu, Kannada and similar languages is sometimes written out phonetically in Devanagari (for example "अमार मोन खुब आश्थिर" is Bengali) — work out the language actually spoken and reply in its own script. The site's interface is in English, so when the language is unclear (for example a document sent with no message), reply in English.
 
 Gita: ground what you say in the text. Read the exact verses with the tools before quoting, cite them as chapter.verse (for example 2.47) so the site can link them, and say whether a translation is the site's Hindi bhavarth or Purohit Swami's English. The site's texts are Sanskrit, Hindi and English, so translate quotes into the reader's language when it differs (keep the Sanskrit as it is). Go deep when asked — word meanings, context, links to other verses, daily-life use. Where commentators differ (Shankara, Ramanuja, Madhva, Tilak, Gandhi, Vinoba, Aurobindo…), present the views fairly. Never claim to be Krishna or to speak with divine authority.
 
-Tax: never do tax arithmetic yourself — use calculate_tax, which runs the site's tested calculator, and quote its figures. When someone shares a document (Form 16, salary slip, AIS/26AS, capital-gains or interest statement, rent receipts), read it carefully and call calculate_tax with show_in_calculator set to true straight away, in the same turn, so the calculator on the site is filled in for them to check, print or save — do not wait for a go-ahead. Documents often belong to a family member or a client, so a name that differs from the reader's is normal and no reason to hold back. Where something is missing or unclear (age, residential status and so on), use the sensible default (below 60, resident) and say so. Then list the figures you used and where they came from, state any assumptions, and offer to recalculate if anything needs correcting. read_tax_calculator shows what is currently on the calculator page. Explain the result simply, say which regime is cheaper and why, and remind them it is an estimate for guidance — not tax advice — to verify with a professional or the official utility before filing. Do not repeat full PAN, Aadhaar, bank account or phone numbers from documents.
+Tax: never do tax arithmetic yourself — use calculate_tax, which runs the site's tested calculator, and quote its figures. Set taxpayer for HUFs, firms, LLPs and companies: a firm's partners' interest (12% cap) and remuneration (section 40(b) limit) are worked out by the calculator; a company is compared on normal rates (with MAT if you give book profit) against 115BAA, or 115BAB for an eligible new manufacturer — point out that 115BAA/115BAB is irrevocable. When someone shares a document (Form 16, salary slip, AIS/26AS, capital-gains or interest statement, rent receipts), read it carefully and call calculate_tax with show_in_calculator set to true straight away, in the same turn, so the calculator on the site is filled in for them to check, print or save — do not wait for a go-ahead. Documents often belong to a family member or a client, so a name that differs from the reader's is normal and no reason to hold back. Where something is missing or unclear (age, residential status and so on), use the sensible default (below 60, resident) and say so. Then list the figures you used and where they came from, state any assumptions, and offer to recalculate if anything needs correcting. read_tax_calculator shows what is currently on the calculator page. Explain the result simply, say which regime is cheaper and why, and remind them it is an estimate for guidance — not tax advice — to verify with a professional or the official utility before filing. Do not repeat full PAN, Aadhaar, bank account or phone numbers from documents.
 
-Videos: use list_videos to see the episodes and open_page to take people there. Investing content is educational only — never give buy/sell calls, price targets or personal investment advice.
+Bank statements: when someone attaches a statement (PDF, Excel or CSV) or asks about one, call analyze_bank_statement straight away — it loads the attached file into the site's Bank Statement Analyzer, opens it and returns totals, monthly cash flow, categories, top counterparties and observations. Set account_holder to business for a current / OD / CC account of a proprietor, firm or company. Then explain what stands out (cash flow, returns / bounces, charges, EMIs, tax payments, customer concentration, cash deposits against reporting limits) and what to act on. Use read_bank_statement and find_bank_transactions for follow-up questions about the statement on screen. Never repeat full account numbers.
+
+Tenders: use search_tenders (filters for words, department, minimum value, closing within N days). Give the tender ID, value, department and closing date, and remind people to verify on eproc2.bihar.gov.in; mention how old the data is if it's more than two days.
+
+Markets: use market_scanner to explain the scanner's patterns and ratings, and list_videos for the videos. Investing content is educational only — never give buy/sell calls, price targets or personal investment advice; suggest a SEBI-registered adviser for personal decisions.
+
+Management: use management_tool to run the capital, business, capex, goals or efficiency tool with the person's figures (it fills and opens the page), then explain the results in plain language and practical next steps. For a full review, suggest contacting SKC & CO. through the Management Services page.
+
+Documents: use list_documents for the library, news, the Daily Market Update and Bihar Vision documents; link files you find. Use open_page to take people anywhere on the site.
 
 Style: warm and respectful, like a knowledgeable friend; focused, well-organised answers with short headings or lists when they help. If you are unsure, say so. If someone seems to be in real distress (for example thoughts of self-harm), respond with care, encourage them to talk to someone they trust, and suggest a helpline such as Tele-MANAS 14416 (India). Anything outside these services can be answered briefly and kindly.`;
 
@@ -87,11 +102,12 @@ const TOOLS = [
   },
   {
     name: "calculate_tax",
-    description: "Run the site's Income Tax Calculator (individuals, Tax Year 2026-27) and get both regimes' tax, the recommendation and the main lines of each computation. All amounts are annual rupees; leave out anything that doesn't apply. Set show_in_calculator to true to also fill the calculator page on the site with these figures and open it (do this after reading someone's document).",
+    description: "Run the site's Income Tax Calculator (Tax Year 2026-27) for an individual, HUF, partnership firm, LLP or domestic company. Returns the tax under each option open to the taxpayer (new vs old regime; firm at 30%; company normal rates vs 115BAA/115BAB, with MAT), the recommendation and the main lines of each computation. All amounts are annual rupees; leave out anything that doesn't apply. Set show_in_calculator to true to also fill the calculator page on the site and open it (do this after reading someone's document).",
     input_schema: {
       type: "object",
       properties: {
-        name: { type: "string", description: "Taxpayer name for the computation heading (optional)" },
+        taxpayer: { type: "string", enum: ["individual", "huf", "firm", "llp", "company"], description: "Default individual. company = domestic company." },
+        name: { type: "string", description: "Taxpayer's name (person, HUF, firm or company) as given in the question or document, for the heading. Leave out if not stated — don't use the reader's own name unless it is their own tax." },
         age: { type: "string", enum: ["below_60", "60_to_80", "80_plus"] },
         resident: { type: "boolean", description: "Resident in India (default true)" },
         salary_gross: AMOUNT("Gross salary incl. perquisites"),
@@ -102,8 +118,15 @@ const TOOLS = [
         rent_received: AMOUNT("Annual rent received (let-out)"),
         municipal_tax: AMOUNT("Municipal tax paid (let-out)"),
         home_loan_interest: AMOUNT("Home-loan interest u/s 24(b)"),
-        business_method: { type: "string", enum: ["regular", "44AD", "44ADA"] },
-        net_profit: { type: "number", description: "Business net profit (regular); negative for a loss" },
+        business_method: { type: "string", enum: ["regular", "44AD", "44ADA"], description: "Not for companies or LLPs" },
+        net_profit: { type: "number", description: "Individual/HUF: business net profit (negative for a loss). Firm/LLP: net profit BEFORE partners' interest and remuneration. Company: taxable business profit after tax adjustments and tax depreciation." },
+        partners_interest: AMOUNT("Firm/LLP: interest paid or credited to partners"),
+        partners_capital: AMOUNT("Firm/LLP: partners' capital, for the 12% interest cap"),
+        partners_remuneration: AMOUNT("Firm/LLP: remuneration to working partners"),
+        brought_forward_loss: AMOUNT("Brought-forward business loss / unabsorbed depreciation"),
+        book_profit: AMOUNT("Company: book profit u/s 115JB, for the MAT check"),
+        turnover_above_400cr: { type: "boolean", description: "Company: turnover / gross receipts above 400 crore in FY 2024-25 (30% rate instead of 25%)" },
+        new_manufacturing_115bab: { type: "boolean", description: "Company: eligible new manufacturing company (compare with 115BAB instead of 115BAA)" },
         turnover_digital_44ad: AMOUNT("44AD turnover received digitally / by bank"),
         turnover_cash_44ad: AMOUNT("44AD turnover received in cash"),
         gross_receipts_44ada: AMOUNT("44ADA gross receipts"),
@@ -121,9 +144,12 @@ const TOOLS = [
         d80d_self: AMOUNT("80D health insurance for self / family"),
         d80d_parents: AMOUNT("80D health insurance for parents"),
         parents_senior: { type: "boolean", description: "Parents are senior citizens" },
+        senior_member: { type: "boolean", description: "HUF: an insured member is a senior citizen (80D cap 50k)" },
+        d80jjaa: AMOUNT("Firm/company: 80JJAA additional employee cost"),
+        d80m: AMOUNT("Company: 80M inter-corporate dividends distributed"),
         d80e: AMOUNT("80E education-loan interest"),
         d80g: AMOUNT("80G qualifying donation amount"),
-        other_deductions: AMOUNT("Other Chapter VI-A deductions (80DD, 80U, 80GG…)"),
+        other_deductions: AMOUNT("Individual/HUF: other Chapter VI-A deductions (80DD, 80U, 80GG…). Firm/company: Part C deductions (80-IA, 80-IAC, 80-IBA…)"),
         show_in_calculator: { type: "boolean", description: "Also fill and open the calculator page on the site" },
       },
       additionalProperties: false,
@@ -141,15 +167,115 @@ const TOOLS = [
   },
   {
     name: "open_page",
-    description: "Open a page of the site for the person: home, chapters, a chapter or verse, the tax calculator, or the videos page.",
+    description: "Open a page of the site for the person: home, chapters, a chapter or verse, tax calculator, bank statement analyzer, Bihar tenders, market scanner, management services (optionally one tool), Bihar vision documents, documents & news library, or videos.",
     input_schema: {
       type: "object",
       properties: {
-        page: { type: "string", enum: ["home", "chapters", "chapter", "tax", "videos"] },
+        page: { type: "string", enum: ["home", "chapters", "chapter", "tax", "bank", "tenders", "scanner", "management", "vision", "library", "videos"] },
         chapter: { type: "integer", description: "For page = chapter" },
         verse: { type: "integer", description: "Optional verse within the chapter" },
+        tool: { type: "string", enum: ["capital", "business", "capex", "goals", "efficiency"], description: "For page = management: open this tool" },
       },
       required: ["page"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "analyze_bank_statement",
+    description: "Load a bank statement the person attached in this conversation (PDF, Excel or CSV) into the site's Bank Statement Analyzer, open that page, and get the analysis: opening/closing balance, totals, balance check, categories, monthly cash flow, top payers and payees, observations and the largest transactions. Runs in the person's browser.",
+    input_schema: {
+      type: "object",
+      properties: {
+        file_name: { type: "string", description: "Name of the attached file; default the latest PDF / Excel / CSV attached" },
+        account_holder: { type: "string", enum: ["personal", "business"], description: "business = current / OD / CC account of a proprietor, firm or company" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "read_bank_statement",
+    description: "Read the analysis of the statement currently loaded in the Bank Statement Analyzer (whether loaded by you or by the person).",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "find_bank_transactions",
+    description: "Search the transactions of the statement loaded in the Bank Statement Analyzer. Returns matching rows with totals.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Words, reference or amount to look for in the narration" },
+        category: { type: "string", enum: ["Salary", "Payroll", "Dividend", "Interest", "Refund", "GST", "Income tax / TDS", "EMI/Loan", "Insurance", "Investments", "Credit card", "Utilities", "Rent", "ATM Cash", "Cash deposit", "Cheque", "UPI", "NEFT/RTGS/IMPS", "Charges/Fees", "Other"] },
+        type: { type: "string", enum: ["credit", "debit"] },
+        limit: { type: "integer", description: "Rows to return, up to 60 (default 25)" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "search_tenders",
+    description: "Search the Bihar Government tenders listed on the site (service tenders of 2 crore+, works / goods / supply of 50 crore+). Returns matching tenders with ID, title, department, value, closing time and time left, plus how old the data is.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Words in the title, department, office, reference or tender ID" },
+        view: { type: "string", enum: ["service", "other", "new", "closing_soon", "closed"], description: "Default: all live tenders" },
+        department: { type: "string" },
+        min_value_cr: { type: "number", description: "Minimum value in crore rupees" },
+        closing_within_days: { type: "number" },
+        sort: { type: "string", enum: ["closing", "value", "published"] },
+        limit: { type: "integer", description: "Up to 25 (default 12)" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "market_scanner",
+    description: "Read the site's Capital Market Scanner (educational NIFTY 500 screen): companies matching a chart pattern, with the SKC score and rating, valuation figures and pattern details, plus the data date.",
+    input_schema: {
+      type: "object",
+      properties: {
+        pattern: { type: "string", enum: ["bottom", "below200", "breakdown", "low52"], description: "bottom = double / triple bottom; below200 = >20% below the 200-day average; breakdown = fell below a 20/50-day low; low52 = at a 52-week low" },
+        min_rating: { type: "string", enum: ["A", "B"] },
+        dividend_only: { type: "boolean" },
+        query: { type: "string", description: "Name, symbol or sector" },
+        limit: { type: "integer", description: "Up to 20 (default 10)" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "management_tool",
+    description: "Run one of the Management Services tools with the person's figures (amounts in rupees, percentages as plain numbers such as 12), fill and open its page, and get the results with observations. Inputs by tool — capital: equity, reserves, loans_long, loans_short, cash, ebit, interest, tax, sales. business: sales, prev_sales, cogs, opex, depreciation, interest, tax, receivables, inventory, payables, current_assets, current_liabilities. capex: cost, life, salvage, inflow, growth, rate, loan_pct, loan_rate, loan_years. goals: goal, cost_today, years, inflation, return, saved, stepup. efficiency: idle_cash, idle_rate, alt_rate, loan, loan_rate, refi_rate, sales, receivables, target_days, expenses, cut_pct.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tool: { type: "string", enum: ["capital", "business", "capex", "goals", "efficiency"] },
+        inputs: { type: "object", description: "Figures keyed by the input names listed for the tool", additionalProperties: true },
+        show_on_page: { type: "boolean", description: "Fill and open the tool's page (default true)" },
+      },
+      required: ["tool", "inputs"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "read_management_tool",
+    description: "Read the inputs and results currently on one of the Management Services tool pages.",
+    input_schema: {
+      type: "object",
+      properties: { tool: { type: "string", enum: ["capital", "business", "capex", "goals", "efficiency"] } },
+      required: ["tool"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "list_documents",
+    description: "Search the site's Documents & News library (news, documents, the Daily Market Update) and the Bihar Vision documents. Returns titles, dates, summaries and links.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        kind: { type: "string", enum: ["news", "documents", "vision"] },
+      },
       additionalProperties: false,
     },
   },
