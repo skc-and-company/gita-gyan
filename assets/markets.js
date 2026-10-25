@@ -118,7 +118,7 @@
           el("div", { class: "tax-grid noprint" },
             el("label", { class: "field" }, el("span", null, "Search"), el("input", { type: "search", value: T.q, placeholder: "title, tender ID, reference, department", oninput: (e) => { T.q = e.target.value; draw(); } })),
             el("label", { class: "field" }, el("span", null, "Department"), sel("mk-dep", [["", "All departments"], ...deps.map((x) => [x, x])], T.dep, (v) => { T.dep = v; })),
-            el("label", { class: "field" }, el("span", null, "Minimum value (₹ crore)"), el("input", { inputmode: "decimal", value: T.min, placeholder: "e.g. 10", oninput: (e) => { T.min = e.target.value.replace(/[^\d.]/g, ""); draw(); } })),
+            el("label", { class: "field" }, el("span", null, "Minimum value (₹ crore)"), el("input", { inputmode: "decimal", value: T.min, placeholder: "e.g. 10", oninput: (e) => { T.min = e.target.value.replace(/[^\d.]/g, ""); if (e.target.value !== T.min) e.target.value = T.min; draw(); } })),
             el("label", { class: "field" }, el("span", null, "Sort by"), sel("mk-sort", [["closing", "Closing date (soonest)"], ["value", "Value (highest)"], ["published", "Published (newest)"]], T.sort, (v) => { T.sort = v; T.dir = v === "closing" ? 1 : -1; }))),
           el("p", { class: "tax-actions noprint" },
             el("button", { class: "btn small", type: "button", onclick: () => saveBlob(new Blob([csv([["Tender ID", "Reference", "Title", "Department", "Office", "Category", "Value (Rs crore)", "Published", "Closing (IST)", "Portal"], ...tenderRows(D).map((t) => [t.tender_id, t.ref_no, t.title, t.department, t.office, t.category, t.value_cr, t.published, t.closing, t.link])])], { type: "text/csv" }), `Bihar-tenders-${T.view}.csv`) }, "Download CSV"),

@@ -1842,8 +1842,8 @@
       console.warn("Saarthi AI unavailable:", e.message);
       S.chat.view = S.chat.view.filter((m) => !(m.role === "bot" && !m.text)); // drop the empty "typing" bubble
       const note = e.dailyLimit
-        ? `You've reached today's limit${typeof e.dailyLimit === "number" ? ` of ${e.dailyLimit} questions` : ""} — please come back tomorrow. Meanwhile, straight from the Gita:`
-        : "The AI isn't available right now — straight from the Gita:";
+        ? `You've reached today's limit${typeof e.dailyLimit === "number" ? ` of ${e.dailyLimit} questions` : ""} — please come back tomorrow. Meanwhile, here is what the site itself can tell you:`
+        : "The AI isn't available right now — here is what the site itself can tell you:";
       if (e.dailyLimit) S.chat.remaining = 0;
       S.chat.view.push({ role: "tool", text: note }, { role: "bot", text: offlineAnswer(text) });
     } finally {
