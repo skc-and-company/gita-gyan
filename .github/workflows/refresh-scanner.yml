@@ -1,0 +1,67 @@
+# Rebuilds data/scanner.json (Capital Market Scanner) every weekday after the NSE close
+# and commits it, so the site always shows the latest session.
+# Run it by hand from the Actions tab → "Refresh scanner data" → Run workflow.
+name: Refresh scanner data
+
+on:
+  schedule:
+    - cron: "35 12 * * 1-5"   # 18:05 IST, Monday–Friday (NSE closes 15:30 IST)
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit data/scanner.json
+  pages: write      # ask GitHub Pages to rebuild (pushes made with GITHUB_TOKEN don't trigger it)
+
+concurrency:
+  group: refresh-scanner
+  cancel-in-progress: false
+
+jobs:
+  scanner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install packages
+        run: pip install "yfinance>=1.2" pandas requests
+
+      # Fundamentals are re-downloaded only when older than 7 days; this keeps them between runs.
+      - name: Restore fundamentals cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: scanner-fundamentals-${{ github.run_id }}
+          restore-keys: scanner-fundamentals-
+
+      - name: Build scanner.json
+        run: python scripts/build_scanner.py --out data/scanner.json --cache .cache/fundamentals.json
+
+      - name: Save fundamentals cache
+        if: always() && hashFiles('.cache/fundamentals.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: scanner-fundamentals-${{ github.run_id }}
+
+      - name: Commit
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/scanner.json
+          if git diff --cached --quiet; then echo "No change."; exit 0; fi
+          git commit -m "Refresh scanner data (prices as of $(python -c 'import json;print(json.load(open("data/scanner.json"))["as_of"])'))"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild GitHub Pages
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
