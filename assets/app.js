@@ -1366,6 +1366,13 @@
     d80ccd2: "d80ccd2", d80d_self: "d80ds", d80d_parents: "d80dp", d80e: "d80e", d80g: "d80g", other_deductions: "dother",
     partners_interest: "pint", partners_capital: "pcap", partners_remuneration: "prem", brought_forward_loss: "bfl",
     book_profit: "bookp", d80jjaa: "d80jjaa", d80m: "d80m",
+    goods_vehicles_heavy_ton_months: "ae1", goods_vehicles_other_months: "ae2", mat_credit_brought_forward: "matcr",
+    ltcg_property_without_indexation: "ltprop", ltcg_property_with_indexation: "ltpropidx", vda_gains: "vda",
+    family_pension: "fampen", winnings: "win", agricultural_income: "agri",
+    d80ddb: "d80ddb", d80eeb: "d80eeb", rent_paid_80gg: "d80gg", d80cch: "d80cch", d80ggc: "d80ggc",
+    tds: "tds", tcs: "tcs", relief_89: "relief89", advance_tax_by_15jun: "at1", advance_tax_16jun_15sep: "at2",
+    advance_tax_16sep_15dec: "at3", advance_tax_16dec_15mar: "at4", advance_tax_16mar_31mar: "at5",
+    self_assessment_tax: "sat", self_assessment_date: "satdate", filing_date: "filedate",
   };
   function taxInputs(i) {
     const d = {
@@ -1375,6 +1382,12 @@
       hpt: { self_occupied: "so", let_out: "lo" }[i.house_property] || "none", bt: { "44AD": "ad", "44ADA": "ada" }[i.business_method] || "np",
       parsen: i.parents_senior ? "1" : "0", hsen: i.senior_member ? "1" : "0", ttauto: "1",
       cturn: i.turnover_above_400cr ? "0" : "1", c115bab: i.new_manufacturing_115bab ? "1" : "0",
+      d80dd: { disability: "1", severe: "2" }[i.d80dd] || "0", d80u: { disability: "1", severe: "2" }[i.d80u] || "0",
+      ddbsen: i.d80ddb_patient_senior ? "1" : "0",
+      duecat: { "31_jul": "jul", "31_aug": "aug", "31_oct": "oct", "30_nov": "nov" }[i.due_date] || "auto",
+      cgwhen: { after_15jun: "1", after_15sep: "2", after_15dec: "3", after_15mar: "4" }[i.capital_gains_arose] || "0",
+      itru: { within_12_months: "12", within_24_months: "24", within_36_months: "36", within_48_months: "48" }[i.updated_return] || "0",
+      itru280: i.updated_return_after_notice ? "1" : "0",
     };
     for (const [k, f] of Object.entries(TAX_FIELDS)) if (i[k] != null && i[k] !== "") d[f] = String(i[k]);
     return d;
@@ -1387,6 +1400,18 @@
       ...(o.mat ? { mat: o.mat.total } : {}), ...(o.matCredit ? { mat_credit: o.matCredit } : {}), ...(o.amt ? { amt: o.amt.total } : {}),
       ...(o.firm ? { partners_interest_allowed: o.firm.intA, partners_remuneration_allowed: o.firm.remA, remuneration_limit: o.firm.lim } : {}),
       ...(o.busCF ? { business_loss_not_set_off: o.busCF } : {}), ...(o.bflLeft ? { brought_forward_loss_left: o.bflLeft } : {}),
+      ...(o.idxCompared ? { property_gain_indexation_used: o.idxUsed } : {}), ...(o.matCrUsed ? { mat_credit_used: o.matCrUsed, mat_credit_left: o.matCrLeft || 0 } : {}),
+      ...(o.pay ? { taxes_paid_and_interest: payInfo(o.pay) } : {}),
+    });
+    const payInfo = (P) => ({
+      tax_after_relief: P.T, tds: P.tds, tcs: P.tcs, tax_due_after_tds_tcs: P.due, advance_tax_required: P.liable,
+      advance_tax_schedule: P.liable ? P.schedule.map((x) => ({ by: x.date, cumulative_required: x.required, paid_by_then: x.paid, still_to_pay: Math.max(0, x.required - x.paid) })) : [],
+      ...(P.active ? {
+        advance_tax_paid: P.adv, interest_425_old_234C: P.int425, interest_424_old_234B: P.int424, interest_423_old_234A: P.int423,
+        fee_428_old_234F: P.fee, self_assessment_tax: P.sat, balance_payable: P.net > 0 ? P.net : 0, refund_due: P.net < 0 ? -P.net : 0,
+        due_date: { jul: "31 Jul 2027", aug: "31 Aug 2027", oct: "31 Oct 2027", nov: "30 Nov 2027" }[P.dueKey],
+        ...(P.itru ? { updated_return_additional_tax: P.itru } : {}), ...(P.tooLate ? { warning: "Belated return window closes 31 Dec 2027 — only an updated return after that" } : {}),
+      } : { note: "No TDS / advance tax / filing date given, so interest isn't worked out. Ask for them to compute interest u/s 423-425 and the fee u/s 428." }),
     });
     const best = r.opts.find((x) => x.id === r.best);
     return {
@@ -1410,7 +1435,8 @@
     read_tax_calculator() {
       const c = window.GGTax?.current();
       const filled = c?.inputs && Object.fromEntries(Object.entries(c.inputs).filter(([, v]) => v !== "" && v != null));
-      if (!c || (!c.result && (!filled || Object.keys(filled).length <= 8))) return { empty: true, note: "Nothing has been entered or computed on the calculator yet." };
+      const CHOICES = ["name", "ent", "age", "res", "ftype", "cturn", "c115bab", "hpt", "bt", "parsen", "hsen", "ttauto", "d80dd", "d80u", "ddbsen", "duecat", "cgwhen", "itru", "itru280"];
+      if (!c || (!c.result && (!filled || !Object.keys(filled).some((k) => !CHOICES.includes(k))))) return { empty: true, note: "Nothing has been entered or computed on the calculator yet." };
       return { inputs: filled, result: c.result ? taxSummary(c.result, true) : null };
     },
     async analyze_bank_statement({ file_name, account_holder }) {

@@ -594,3 +594,6 @@ body[data-section="gita"] .brand-mark { background: var(--maroon); }
 .menu .menu-group > summary, .menu[open] .menu-group > summary { display: block; border: 0; background: none; padding: .4rem 0; border-radius: 0; font-size: .95rem; color: var(--ink); }
 .menu .menu-group > summary:hover { color: var(--accent); }
 #view { overflow-wrap: anywhere; }
+.tax-sched { margin: .8rem 0 1rem; }
+.tax-sched h3 { font-size: .95rem; color: var(--maroon); margin: .4rem 0; }
+.tax-reg small + small { margin-top: .15rem; }
