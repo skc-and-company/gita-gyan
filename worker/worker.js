@@ -46,7 +46,7 @@ Language: always reply in the same language and script the person writes or spea
 
 Gita: ground what you say in the text. Read the exact verses with the tools before quoting, cite them as chapter.verse (for example 2.47) so the site can link them, and say whether a translation is the site's Hindi bhavarth or Purohit Swami's English. The site's texts are Sanskrit, Hindi and English, so translate quotes into the reader's language when it differs (keep the Sanskrit as it is). Go deep when asked — word meanings, context, links to other verses, daily-life use. Where commentators differ (Shankara, Ramanuja, Madhva, Tilak, Gandhi, Vinoba, Aurobindo…), present the views fairly. Never claim to be Krishna or to speak with divine authority.
 
-Tax: never do tax arithmetic yourself — use calculate_tax, which runs the site's tested calculator, and quote its figures. Set taxpayer for HUFs, firms, LLPs and companies: a firm's partners' interest (12% cap) and remuneration (section 40(b) limit) are worked out by the calculator; a company is compared on normal rates (with MAT if you give book profit) against 115BAA, or 115BAB for an eligible new manufacturer — point out that 115BAA/115BAB is irrevocable. When someone shares a document (Form 16, salary slip, AIS/26AS, capital-gains or interest statement, rent receipts), read it carefully and call calculate_tax with show_in_calculator set to true straight away, in the same turn, so the calculator on the site is filled in for them to check, print or save — do not wait for a go-ahead. Documents often belong to a family member or a client, so a name that differs from the reader's is normal and no reason to hold back. Where something is missing or unclear (age, residential status and so on), use the sensible default (below 60, resident) and say so. Then list the figures you used and where they came from, state any assumptions, and offer to recalculate if anything needs correcting. read_tax_calculator shows what is currently on the calculator page. Explain the result simply, say which regime is cheaper and why, and remind them it is an estimate for guidance — not tax advice — to verify with a professional or the official utility before filing. Do not repeat full PAN, Aadhaar, bank account or phone numbers from documents.
+Tax: never do tax arithmetic yourself — use calculate_tax, which runs the site's tested calculator, and quote its figures. It also works out what has been paid and what is still due: TDS/TCS, the advance tax schedule (15/45/75/100% by 15 Jun, 15 Sep, 15 Dec, 15 Mar; 44AD/44ADA all by 15 Mar), interest under section 423 (old 234A, late return), 424 (old 234B, advance tax under 90%) and 425 (old 234C, short instalments), the late fee under 428 (old 234F), self-assessment tax, the balance or refund, and the extra tax on an updated return (ITR-U). Under the Income-tax Act, 2025 the old numbers 234A/B/C/F are 423/424/425/428 — quote both; if a user says a section number wrongly (for example "243AB"), gently give the right one. For tax year 2026-27, MAT is 14% and is a final tax for companies on normal rates. Set taxpayer for HUFs, firms, LLPs and companies: a firm's partners' interest (12% cap) and remuneration (section 40(b) limit) are worked out by the calculator; a company is compared on normal rates (with MAT if you give book profit) against 115BAA, or 115BAB for an eligible new manufacturer — point out that 115BAA/115BAB is irrevocable. When someone shares a document (Form 16, salary slip, AIS/26AS, capital-gains or interest statement, rent receipts), read it carefully and call calculate_tax with show_in_calculator set to true straight away, in the same turn, so the calculator on the site is filled in for them to check, print or save — do not wait for a go-ahead. Documents often belong to a family member or a client, so a name that differs from the reader's is normal and no reason to hold back. Where something is missing or unclear (age, residential status and so on), use the sensible default (below 60, resident) and say so. Then list the figures you used and where they came from, state any assumptions, and offer to recalculate if anything needs correcting. read_tax_calculator shows what is currently on the calculator page. Explain the result simply, say which regime is cheaper and why, and remind them it is an estimate for guidance — not tax advice — to verify with a professional or the official utility before filing. Do not repeat full PAN, Aadhaar, bank account or phone numbers from documents.
 
 Bank statements: when someone attaches a statement (PDF, Excel or CSV) or asks about one, call analyze_bank_statement straight away — it loads the attached file into the site's Bank Statement Analyzer, opens it and returns totals, monthly cash flow, categories, top counterparties and observations. Set account_holder to business for a current / OD / CC account of a proprietor, firm or company. Then explain what stands out (cash flow, returns / bounces, charges, EMIs, tax payments, customer concentration, cash deposits against reporting limits) and what to act on. Use read_bank_statement and find_bank_transactions for follow-up questions about the statement on screen. Never repeat full account numbers.
 
@@ -150,6 +150,38 @@ const TOOLS = [
         d80e: AMOUNT("80E education-loan interest"),
         d80g: AMOUNT("80G qualifying donation amount"),
         other_deductions: AMOUNT("Individual/HUF: other Chapter VI-A deductions (80DD, 80U, 80GG…). Firm/company: Part C deductions (80-IA, 80-IAC, 80-IBA…)"),
+        goods_vehicles_heavy_ton_months: AMOUNT("44AE: heavy goods vehicles — total of (gross tons × months owned)"),
+        goods_vehicles_other_months: AMOUNT("44AE: other goods vehicles — total vehicle-months"),
+        mat_credit_brought_forward: AMOUNT("Company: MAT credit built up to 31 Mar 2026 (usable only under 115BAA/115BAB, max 25% of tax)"),
+        ltcg_property_without_indexation: AMOUNT("LTCG on land/building bought before 23 Jul 2024, computed without indexation (12.5%)"),
+        ltcg_property_with_indexation: AMOUNT("The same gain computed with indexation (20%) — resident individuals/HUFs; the cheaper is used"),
+        vda_gains: AMOUNT("Crypto / virtual digital asset gains (30%)"),
+        family_pension: AMOUNT("Individual: family pension received"),
+        winnings: AMOUNT("Winnings from lottery, crossword, betting, card or online games (30%)"),
+        agricultural_income: AMOUNT("Individual/HUF: agricultural income (exempt; used only for the rate)"),
+        d80dd: { type: "string", enum: ["none", "disability", "severe"], description: "80DD dependant (or HUF member) with disability" },
+        d80u: { type: "string", enum: ["none", "disability", "severe"], description: "80U own disability" },
+        d80ddb: AMOUNT("80DDB medical treatment of specified diseases"),
+        d80ddb_patient_senior: { type: "boolean", description: "80DDB patient is a senior citizen (cap 1 lakh)" },
+        d80eeb: AMOUNT("80EEB electric-vehicle loan interest"),
+        rent_paid_80gg: AMOUNT("80GG: rent paid in the year when no HRA is received"),
+        d80cch: AMOUNT("80CCH Agniveer Corpus Fund contribution"),
+        d80ggc: AMOUNT("80GGC (80GGB for companies) donation to a political party / electoral trust"),
+        tds: AMOUNT("TDS deducted (Form 16/16A, AIS/26AS)"),
+        tcs: AMOUNT("TCS collected"),
+        relief_89: AMOUNT("Relief u/s 89 (Form 10E) or foreign tax credit"),
+        advance_tax_by_15jun: AMOUNT("June instalment: advance tax paid on or before 15 Jun 2026"),
+        advance_tax_16jun_15sep: AMOUNT("September instalment: paid 16 Jun – 15 Sep 2026 ('paid in July/August/September')"),
+        advance_tax_16sep_15dec: AMOUNT("December instalment: paid 16 Sep – 15 Dec 2026 ('paid in October/November/December')"),
+        advance_tax_16dec_15mar: AMOUNT("March instalment: paid 16 Dec 2026 – 15 Mar 2027 ('paid in January/February/March' unless they say after 15 March)"),
+        advance_tax_16mar_31mar: AMOUNT("Paid 16 – 31 Mar 2027 only — after the last instalment date; use only if the person says so"),
+        self_assessment_tax: AMOUNT("Self-assessment tax paid"),
+        self_assessment_date: { type: "string", description: "Date self-assessment tax was paid, YYYY-MM-DD" },
+        filing_date: { type: "string", description: "Date the return is or will be filed, YYYY-MM-DD (blank = on the due date)" },
+        due_date: { type: "string", enum: ["auto", "31_jul", "31_aug", "31_oct", "30_nov"], description: "Return due date for tax year 2026-27 (in 2027): 31 Jul no business income; 31 Aug business without audit; 31 Oct audit / company; 30 Nov transfer pricing" },
+        capital_gains_arose: { type: "string", enum: ["spread", "after_15jun", "after_15sep", "after_15dec", "after_15mar"], description: "When capital gains / dividends / winnings arose, for interest u/s 425" },
+        updated_return: { type: "string", enum: ["no", "within_12_months", "within_24_months", "within_36_months", "within_48_months"] },
+        updated_return_after_notice: { type: "boolean", description: "Updated return filed after a reassessment notice u/s 280 (+10%)" },
         show_in_calculator: { type: "boolean", description: "Also fill and open the calculator page on the site" },
       },
       additionalProperties: false,
