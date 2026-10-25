@@ -298,8 +298,7 @@
         h("div", { class: "menu-label" }, "Services"),
         h("div", { class: "menu-links" },
           h("a", { href: "#/chapters" }, "📖 Chapters"),
-          h("a", { href: "#/tax" }, "₹ Income Tax Calculator"),
-          h("a", { href: "#/videos" }, "▶ Gita se Capital Market tak (videos)")),
+          SERVICES.map(([id, icon, title]) => h("a", { href: `#/${id}` }, `${icon} ${title}`))),
         h("div", { class: "menu-label" }, "Pages"),
         h("div", { id: "menu-pages", class: "menu-links" }),
         h("hr"),
@@ -310,8 +309,11 @@
       h("a", { href: "#/", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
       h("nav", { class: "main-nav" },
         h("a", { href: "#/chapters" }, "Chapters"),
-        h("a", { href: "#/tax" }, "Tax Calculator"),
-        h("a", { href: "#/videos" }, "Videos")),
+        h("a", { href: "#/tax" }, "Tax"),
+        h("a", { href: "#/bank" }, "Bank"),
+        h("details", { class: "nav-services" },
+          h("summary", null, "Services ▾"),
+          h("div", { class: "nav-services-menu" }, SERVICES.map(([id, icon, title]) => h("a", { href: `#/${id}` }, `${icon} ${title}`))))),
       search, menu);
   }
 
@@ -358,10 +360,17 @@
     else if (parts[0] === "admin" && ADMIN) node = viewSettings();
     else if (parts[0] === "tax") node = viewTax();
     else if (parts[0] === "videos") node = viewVideos();
+    else if (parts[0] === "bank") node = viewModule("bank-page", window.GGBank, (m, box) => m.render(box));
+    else if (parts[0] === "tenders") node = viewModule("mk-page", window.GGMarkets, (m, box) => m.renderTenders(box));
+    else if (parts[0] === "scanner") node = viewModule("mk-page", window.GGMarkets, (m, box) => m.renderScanner(box));
+    else if (parts[0] === "management") node = viewModule("mg-page", window.GGMgmt, (m, box) => m.render(box, parts[1]));
+    else if (parts[0] === "library") node = viewLibrary();
+    else if (parts[0] === "vision") node = viewVision();
     else node = viewHome();
     document.body.dataset.route = parts[0] || "home";
     view.replaceChildren(node);
     $(".menu")?.removeAttribute("open");
+    $(".nav-services")?.removeAttribute("open");
     if (!rerendering) window.scrollTo(0, 0);
     updateAdminBar();
     const target = parts[0] === "c" && parts[2] && $(`#s-${parts[1]}-${parts[2]}`);
@@ -403,15 +412,28 @@
         chapterGrid()),
       h("section", null,
         h("h2", { class: "section-title" }, "More from SKC & CO."),
-        h("div", { class: "service-grid" },
-          h("a", { class: "chapter-card service-card", href: "#/tax" },
-            h("span", { class: "service-icon", "aria-hidden": "true" }, "₹"),
-            h("span", { class: "cc-sa" }, "Income Tax Calculator"),
-            h("span", { class: "cc-en" }, "Tax Year 2026-27 — old vs new regime, printable computation; Saarthi can fill it from your Form 16")),
-          h("a", { class: "chapter-card service-card", href: "#/videos" },
-            h("span", { class: "service-icon", "aria-hidden": "true" }, "▶"),
-            h("span", { class: "cc-sa" }, "Gita se Capital Market tak"),
-            h("span", { class: "cc-en" }, "JMJ Wealth Creator videos — investing lessons from the Gita")))));
+        h("div", { class: "service-grid" }, SERVICES.map(([id, icon, title, about]) => h("a", { class: "chapter-card service-card", href: `#/${id}` },
+          h("span", { class: "service-icon", "aria-hidden": "true" }, icon),
+          h("span", { class: "cc-sa" }, title),
+          h("span", { class: "cc-en" }, about))))));
+  }
+
+  /* ---------- SKC & CO. services (pages in assets/tax.js, bank.js, markets.js, mgmt.js) ---------- */
+  const SERVICES = [
+    ["tax", "₹", "Income Tax Calculator", "Individuals, HUFs, firms, LLPs and companies — Tax Year 2026-27; Saarthi can fill it from a Form 16"],
+    ["bank", "🏦", "Bank Statement Analyzer", "PDF, Excel or CSV statements — cash flow, categories, counterparties; read privately in your browser"],
+    ["tenders", "📋", "Bihar Tenders", "Bihar Government tenders — service ₹2 crore+, works and goods ₹50 crore+, with closing dates"],
+    ["scanner", "📈", "Capital Market Scanner", "NIFTY 500 chart patterns with the SKC rating — educational screening"],
+    ["management", "📊", "Management Services", "Capital, business health, capex, goals and money-efficiency tools"],
+    ["vision", "🗺️", "Bihar Vision Documents", "Vision and working documents of Bihar and the Bihar Government, by sector"],
+    ["library", "📁", "Documents & News", "Searchable library, curated news and the Daily Market Update"],
+    ["videos", "▶", "Gita se Capital Market tak", "JMJ Wealth Creator videos — investing lessons from the Gita"],
+  ];
+  function viewModule(cls, mod, draw) {
+    const box = h("div", { class: cls });
+    if (mod) draw(mod, box);
+    else box.append(h("p", { class: "missing" }, "This page didn't load — please refresh."));
+    return box;
   }
 
   /* ---------- Income Tax Calculator (assets/tax.js) ---------- */
@@ -481,6 +503,119 @@
           items.push({ id, title: title || "Video", type: type || "", duration: duration || "", desc: desc.join(" | ") });
         }
         S.content.videos = { items, soon: d.soon.split("\n").map((l) => l.trim()).filter(Boolean), disclaimer: d.disclaimer.trim() };
+      },
+    });
+  }
+
+  /* ---------- Documents & News (#/library) and Bihar Vision documents (#/vision) ----------
+   * Lists live in the encrypted content (S.content.library); files the admin uploads are committed to
+   * docs/ in the GitHub repository, so they are public — only upload documents meant to be shared. */
+  const VISION_SECTIONS = [["economy", "Economy"], ["industry", "Industry"], ["agriculture", "Agriculture"], ["infrastructure", "Infrastructure"],
+    ["education", "Education"], ["health", "Health"], ["policies_schemes", "Policies & Schemes"], ["analysis_documents", "Analysis Documents"]];
+  const libraryData = () => S.content.library || { news: [], documents: [], vision: [] };
+  const byDate = (a) => a.slice().sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
+  const LIB = { tab: "news", q: "", cat: "" };
+  const isUrl = (u) => /^(https?:\/\/|docs\/)/i.test(String(u || "").trim());
+  const fileLink = (u, label = "Open") => (isUrl(u) ? h("a", { class: "btn small", href: u.trim(), target: "_blank", rel: "noopener" }, label) : null);
+
+  function viewLibrary() {
+    const L = libraryData(), tab = LIB.tab === "documents" ? "documents" : "news", key = tab === "news" ? "source" : "category";
+    const items = byDate(L[tab] || []);
+    const cats = [...new Set(items.map((x) => x[key]).filter(Boolean))].sort();
+    const q = LIB.q.toLowerCase();
+    const shown = items.filter((x) => (!LIB.cat || x[key] === LIB.cat) && (!q || JSON.stringify(x).toLowerCase().includes(q)));
+    const dmu = byDate((L.documents || []).filter((x) => x.category === "Daily Market Update"))[0];
+    const editKey = (i) => `lib:${tab}:${i}`;
+    const item = (x) => {
+      const i = L[tab].indexOf(x);
+      const node = h("div", { class: "lib-item" },
+        h("b", null, tab === "news" && isUrl(x.link) ? h("a", { href: x.link, target: "_blank", rel: "noopener" }, x.title) : x.title),
+        h("div", { class: "muted" }, [x.date, x[key]].filter(Boolean).join(" · ")),
+        x.summary ? h("p", null, x.summary) : null,
+        tab === "documents" ? fileLink(x.file) : null);
+      return editable(editKey(i), () => libItemForm(tab, x, i), node, "Edit");
+    };
+    return h("div", { class: "library" },
+      h("h1", { class: "page-title" }, "Documents & News"),
+      h("div", { class: "mk-tabs", role: "tablist" },
+        ["news", "documents"].map((t) => h("button", { class: `chip ${tab === t ? "on" : ""}`, type: "button", role: "tab", "aria-selected": String(tab === t), onclick: () => { LIB.tab = t; LIB.cat = ""; rerender(); } },
+          t === "news" ? `News (${(L.news || []).length})` : `Documents (${(L.documents || []).length})`))),
+      tab === "documents" ? h("section", { class: "tax-card lib-dmu" },
+        h("h2", null, "Daily Market Update"),
+        dmu ? h("div", null, h("b", null, dmu.title), h("div", { class: "muted" }, dmu.date), fileLink(dmu.file, "Open PDF"))
+          : h("p", { class: "muted" }, "The Daily Market Update appears here on market days.")) : null,
+      h("section", { class: "tax-card" },
+        h("div", { class: "tax-grid noprint" },
+          h("label", { class: "field" }, h("span", null, "Search"), h("input", { type: "search", value: LIB.q, placeholder: "Search…", oninput: (e) => { LIB.q = e.target.value; const pos = e.target.selectionStart; rerender(); const n = $(".library input[type=search]"); n?.focus(); n?.setSelectionRange(pos, pos); } })),
+          h("label", { class: "field" }, h("span", null, tab === "news" ? "Source" : "Category"),
+            h("select", { onchange: (e) => { LIB.cat = e.target.value; rerender(); } }, h("option", { value: "" }, tab === "news" ? "All sources" : "All categories"), cats.map((c) => h("option", { value: c, selected: LIB.cat === c || null }, c))))),
+        shown.length ? shown.map(item) : h("p", { class: "missing" }, items.length ? "Nothing matches your search." : tab === "news" ? "No news added yet." : "No documents added yet."),
+        ADMIN ? (S.editing === `lib:${tab}:new` ? libItemForm(tab, null, -1) : h("button", { class: "btn small", type: "button", onclick: () => { S.editing = `lib:${tab}:new`; rerender(); } }, tab === "news" ? "+ Add news item" : "+ Add document")) : null));
+  }
+
+  function viewVision() {
+    const L = libraryData();
+    return h("div", { class: "library" },
+      h("h1", { class: "page-title" }, "Vision and Working Documents of Bihar"),
+      h("p", null, "A sector-wise collection of vision documents, government working papers and SKC & CO. analysis on Bihar. Documents are added section by section."),
+      VISION_SECTIONS.map(([id, title]) => {
+        const docs = byDate((L.vision || []).filter((x) => x.section === id));
+        return h("section", { class: "tax-card" },
+          h("h2", null, title),
+          docs.length ? docs.map((x) => {
+            const i = L.vision.indexOf(x);
+            return editable(`lib:vision:${i}`, () => libItemForm("vision", x, i),
+              h("div", { class: "lib-item" }, h("b", null, x.title), h("div", { class: "muted" }, x.date || ""), x.summary ? h("p", null, x.summary) : null, fileLink(x.file, "Open document")), "Edit");
+          }) : h("p", { class: "missing" }, "Documents will be added here."),
+          ADMIN ? (S.editing === `lib:vision:new:${id}` ? libItemForm("vision", { section: id }, -1) : h("button", { class: "btn small", type: "button", onclick: () => { S.editing = `lib:vision:new:${id}`; rerender(); } }, `+ Add to ${title}`)) : null);
+      }));
+  }
+
+  function libItemForm(kind, x, index) {
+    x = x || {};
+    const today = new Date().toISOString().slice(0, 10);
+    const fileField = kind === "news" ? "link" : "file";
+    const upload = h("input", { type: "file", accept: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg", hidden: true, onchange: async (e) => {
+      const f = e.target.files[0]; e.target.value = "";
+      if (!f) return;
+      if (f.size > 20 * 1024 * 1024) { toast("Files up to 20 MB can be uploaded.", "error"); return; }
+      if (!confirm(`Upload ${f.name}? Files uploaded here are public on GitHub — anyone with the link can open them.`)) return;
+      const folder = kind === "vision" ? "docs/bihar-vision" : "docs/library";
+      const path = `${folder}/${today}-${f.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      const fm = e.target.closest("form");
+      try {
+        toast(`Uploading ${f.name}…`);
+        await ghPutBytes(path, new Uint8Array(await f.arrayBuffer()), `Add ${path}`);
+        fm.elements[fileField].value = path;
+        if (!fm.elements.title.value) fm.elements.title.value = f.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
+        toast("✓ Uploaded. Save, then Publish to list it on the site.");
+      } catch (err) { toast(`Upload failed — ${err.message}`, "error"); }
+    } });
+    const fields = [
+      field("Title", "title", x.title),
+      field("Date (YYYY-MM-DD)", "date", x.date || today),
+      kind === "news" ? field("Source (publication)", "source", x.source) : null,
+      kind === "documents" ? field("Category (e.g. Tax, Daily Market Update)", "category", x.category, { hint: "Use “Daily Market Update” for the daily PDF — the newest one is shown at the top." }) : null,
+      kind === "vision" ? h("label", { class: "field" }, h("span", null, "Section"), h("select", { name: "section" }, VISION_SECTIONS.map(([id, t]) => h("option", { value: id, selected: x.section === id || null }, t)))) : null,
+      field("Summary (optional)", "summary", x.summary, { rows: 3 }),
+      field(kind === "news" ? "Link to the original article" : "File — link, or upload below", fileField, x[fileField], { hint: kind === "news" ? "Only real, verified news, linked to the source." : "A web link (https://…) or a file uploaded with the button below." }),
+    ];
+    const extra = kind === "news" ? [] : [upload, h("button", { class: "btn", type: "button", onclick: () => upload.click() }, "⬆ Upload file")];
+    return form(index < 0 ? (kind === "news" ? "Add news item" : "Add document") : "Edit", fields, {
+      extra,
+      onSave: (d) => {
+        if (!d.title.trim()) { toast("A title is needed.", "error"); return false; }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date.trim())) { toast("Date must look like 2026-10-25.", "error"); return false; }
+        if (d[fileField] && !isUrl(d[fileField])) { toast("The link must start with https:// (or be an uploaded file).", "error"); return false; }
+        const L = S.content.library = { news: [], documents: [], vision: [], ...libraryData() };
+        const rec = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, String(v).trim()]));
+        const list = L[kind] = (L[kind] || []).slice();
+        if (index < 0) list.push(rec); else list[index] = rec;
+      },
+      onDelete: index < 0 ? null : () => {
+        if (!confirm(`Remove “${x.title}” from the list? (An uploaded file stays in the repository.)`)) return false;
+        const L = S.content.library = { news: [], documents: [], vision: [], ...libraryData() };
+        L[kind] = L[kind].filter((_, i) => i !== index);
       },
     });
   }
@@ -720,6 +855,8 @@
       field("Announcement (optional, shows as a banner)", "announcement", site.announcement, { rows: 2 }),
       field("Introduction (markdown)", "intro", site.intro, { rows: 8 }),
       field("Footer / copyright", "footer", site.footer, { rows: 2 }),
+      field("Enquiry email (shown on Management Services)", "contact_email", site.contact_email, { type: "email" }),
+      field("Enquiry phone (optional)", "contact_phone", site.contact_phone),
     ], { onSave: (d) => { Object.assign(site, d); } });
   }
 
@@ -838,6 +975,14 @@
       method: "PUT",
       body: JSON.stringify({ message, branch, sha, content: bytesToB64(enc8.encode(text)) }),
     });
+  }
+
+  async function ghPutBytes(path, bytes, message) {
+    const { owner, repo, token, branch } = ghSettings();
+    if (!owner || !repo || !token) throw new Error("add your GitHub details in Settings first");
+    const cur = await gh(`/contents/${path}?ref=${encodeURIComponent(branch)}`);
+    const sha = cur.status === 404 ? undefined : (await cur.json()).sha;
+    await gh(`/contents/${path}`, { method: "PUT", body: JSON.stringify({ message, branch, sha, content: bytesToB64(bytes) }) });
   }
 
   async function publish() {
@@ -1068,12 +1213,17 @@
     gross_receipts_44ada: "gr", stcg_111a: "stcg111a", stcg_other: "stcgo", ltcg_112a: "ltcg112a", ltcg_112: "ltcg112",
     savings_interest: "sbint", fd_interest: "fdint", dividends: "div", other_income: "oth", d80c: "d80c", d80ccd1b: "d80ccd1b",
     d80ccd2: "d80ccd2", d80d_self: "d80ds", d80d_parents: "d80dp", d80e: "d80e", d80g: "d80g", other_deductions: "dother",
+    partners_interest: "pint", partners_capital: "pcap", partners_remuneration: "prem", brought_forward_loss: "bfl",
+    book_profit: "bookp", d80jjaa: "d80jjaa", d80m: "d80m",
   };
   function taxInputs(i) {
     const d = {
+      ent: { huf: "huf", firm: "firm", llp: "firm", company: "co" }[i.taxpayer] || "ind",
+      ftype: i.taxpayer === "llp" ? "llp" : "firm",
       name: i.name || "", age: { "60_to_80": "1", "80_plus": "2" }[i.age] || "0", res: i.resident === false ? "0" : "1",
       hpt: { self_occupied: "so", let_out: "lo" }[i.house_property] || "none", bt: { "44AD": "ad", "44ADA": "ada" }[i.business_method] || "np",
-      parsen: i.parents_senior ? "1" : "0", ttauto: "1",
+      parsen: i.parents_senior ? "1" : "0", hsen: i.senior_member ? "1" : "0", ttauto: "1",
+      cturn: i.turnover_above_400cr ? "0" : "1", c115bab: i.new_manufacturing_115bab ? "1" : "0",
     };
     for (const [k, f] of Object.entries(TAX_FIELDS)) if (i[k] != null && i[k] !== "") d[f] = String(i[k]);
     return d;
@@ -1081,22 +1231,27 @@
   function taxSummary(r, filled) {
     const pick = (o) => ({
       gross_total_income: o.gti, deductions: o.dedList.map(([section, , amount]) => ({ section, amount })), total_income: o.ti,
-      tax_on_total_income: Math.round(o.tax), rebate_87a: Math.round(o.rebate), surcharge: Math.round(o.sur), cess: Math.round(o.cess),
-      total_tax: o.total, ...(o.busCF ? { business_loss_not_set_off: o.busCF } : {}),
+      tax_on_total_income: Math.round(o.tax), ...(o.rebate ? { rebate_87a: Math.round(o.rebate) } : {}), surcharge: Math.round(o.sur), cess: Math.round(o.cess),
+      total_tax: o.total, ...(o.basis ? { payable_under: o.basis, normal_tax: o.normalTotal } : {}),
+      ...(o.mat ? { mat: o.mat.total } : {}), ...(o.matCredit ? { mat_credit: o.matCredit } : {}), ...(o.amt ? { amt: o.amt.total } : {}),
+      ...(o.firm ? { partners_interest_allowed: o.firm.intA, partners_remuneration_allowed: o.firm.remA, remuneration_limit: o.firm.lim } : {}),
+      ...(o.busCF ? { business_loss_not_set_off: o.busCF } : {}), ...(o.bflLeft ? { brought_forward_loss_left: o.bflLeft } : {}),
     });
-    const newBetter = r.nw.total <= r.old.total;
+    const best = r.opts.find((x) => x.id === r.best);
     return {
-      new_regime_tax: r.nw.total, old_regime_tax: r.old.total,
-      recommended: r.nw.total === r.old.total ? "either (equal)" : newBetter ? "new regime" : "old regime",
-      saving: Math.abs(r.nw.total - r.old.total), new_regime: pick(r.nw), old_regime: pick(r.old),
+      taxpayer: { ind: "individual", huf: "HUF", firm: "firm / LLP", co: "domestic company" }[r.ent],
+      options: Object.fromEntries(r.opts.map((x) => [x.label, pick(x.o)])),
+      recommended: r.opts.length < 2 ? best.label : r.saving ? best.label : "either (equal)", saving: r.saving,
       calculator_filled: !!filled, note: "Figures from the site's Income Tax Calculator (Tax Year 2026-27). Estimate for guidance, not tax advice.",
     };
   }
+  const PAGES = { home: "#/", chapters: "#/chapters", tax: "#/tax", videos: "#/videos", bank: "#/bank", tenders: "#/tenders", scanner: "#/scanner",
+    management: "#/management", vision: "#/vision", library: "#/library" };
   Object.assign(tools, {
     calculate_tax(i) {
       if (!window.GGTax) return { error: "The tax calculator isn't loaded — ask the person to refresh the page." };
       const d = taxInputs(i);
-      if (!i.show_in_calculator) return taxSummary(window.GGTax.TAX.both(d), false);
+      if (!i.show_in_calculator) return taxSummary(window.GGTax.TAX.compare(d), false);
       const r = window.GGTax.prefill(d);
       if (!location.hash.startsWith("#/tax")) location.hash = "#/tax";
       return taxSummary(r, true);
@@ -1104,15 +1259,53 @@
     read_tax_calculator() {
       const c = window.GGTax?.current();
       const filled = c?.inputs && Object.fromEntries(Object.entries(c.inputs).filter(([, v]) => v !== "" && v != null));
-      if (!c || (!c.result && (!filled || !filled.sal && Object.keys(filled).length <= 6))) return { empty: true, note: "Nothing has been entered or computed on the calculator yet." };
+      if (!c || (!c.result && (!filled || Object.keys(filled).length <= 8))) return { empty: true, note: "Nothing has been entered or computed on the calculator yet." };
       return { inputs: filled, result: c.result ? taxSummary(c.result, true) : null };
+    },
+    async analyze_bank_statement({ file_name, account_holder }) {
+      if (!window.GGBank) return { error: "The Bank Statement Analyzer isn't loaded — ask the person to refresh." };
+      const files = (S.chat.attached || []).filter((f) => !/^image\//.test(f.type));
+      const f = (file_name && files.find((x) => x.name === file_name)) || files.at(-1);
+      if (!f) return { error: "No PDF, Excel or CSV statement is attached in this conversation. Ask the person to attach it with 📎, or to open the Bank Statement Analyzer and load it there." };
+      if (account_holder) window.GGBank.setHolder(account_holder);
+      if (!location.hash.startsWith("#/bank")) location.hash = "#/bank";
+      const out = await window.GGBank.loadBytes(f.name, b64ToBytes(f.data));
+      return out || { error: "The file couldn't be read as a statement (it may be a scanned image or have no transaction table). Read it yourself if it's a PDF you can see." };
+    },
+    read_bank_statement() {
+      return window.GGBank?.summary() || { empty: true, note: "No statement is loaded in the Bank Statement Analyzer." };
+    },
+    find_bank_transactions(i) {
+      return window.GGBank?.find(i) || { empty: true, note: "No statement is loaded in the Bank Statement Analyzer." };
+    },
+    search_tenders(i) {
+      return window.GGMarkets ? window.GGMarkets.searchTenders(i) : { error: "The tenders page isn't loaded." };
+    },
+    market_scanner(i) {
+      return window.GGMarkets ? window.GGMarkets.scanner(i) : { error: "The scanner isn't loaded." };
+    },
+    management_tool({ tool, inputs, show_on_page }) {
+      if (!window.GGMgmt) return { error: "The management tools aren't loaded." };
+      return window.GGMgmt.run(tool, inputs || {}, show_on_page !== false);
+    },
+    read_management_tool({ tool }) {
+      return window.GGMgmt ? window.GGMgmt.read(tool) : { error: "The management tools aren't loaded." };
+    },
+    list_documents({ query, kind }) {
+      const L = libraryData(), q = String(query || "").toLowerCase();
+      const pick = (a, k) => byDate(a || []).filter((x) => !q || JSON.stringify(x).toLowerCase().includes(q)).slice(0, 15).map((x) => ({ ...x, kind: k, ...(x.section ? { section: (VISION_SECTIONS.find(([id]) => id === x.section) || [])[1] } : {}) }));
+      const out = {};
+      if (!kind || kind === "news") out.news = pick(L.news, "news");
+      if (!kind || kind === "documents") out.documents = pick(L.documents, "document");
+      if (!kind || kind === "vision") out.bihar_vision = pick(L.vision, "vision document");
+      return out;
     },
     list_videos() {
       const v = videosData();
       return { episodes: v.items.map((x, n) => ({ episode: n + 1, title: x.title, type: x.type, duration: x.duration, description: x.desc, link: `https://youtu.be/${x.id}` })), coming_soon: v.soon || [], disclaimer: v.disclaimer };
     },
-    open_page({ page, chapter, verse }) {
-      const target = { home: "#/", chapters: "#/chapters", tax: "#/tax", videos: "#/videos" }[page]
+    open_page({ page, chapter, verse, tool }) {
+      const target = page === "management" && tool ? `#/management/${tool}` : PAGES[page]
         || (page === "chapter" && findChapter(chapter) ? `#/c/${chapter}${verse && findShlok(chapter, verse) ? "/" + verse : ""}` : null);
       if (!target) return { error: "Unknown page or chapter." };
       location.hash = target;
@@ -1123,6 +1316,14 @@
   const toolLabel = (name, input) => ({
     calculate_tax: input.show_in_calculator ? "🧮 Filling in the tax calculator" : "🧮 Calculating tax",
     read_tax_calculator: "🧮 Reading the tax calculator",
+    analyze_bank_statement: "🏦 Analysing the statement in the Bank Statement Analyzer",
+    read_bank_statement: "🏦 Reading the bank statement analysis",
+    find_bank_transactions: `🏦 Looking for transactions${input.query ? ": “" + input.query + "”" : ""}`,
+    search_tenders: `📋 Searching Bihar tenders${input.query ? ": “" + input.query + "”" : ""}`,
+    market_scanner: "📈 Checking the market scanner",
+    management_tool: `📊 Running the ${(window.GGMgmt?.TOOLS.find((t) => t.id === input.tool) || {}).title || "management"} tool`,
+    read_management_tool: "📊 Reading the management tool",
+    list_documents: "📁 Looking through documents and news",
     list_videos: "▶ Looking at the videos",
     open_page: "↗ Opening the page",
     get_shlokas: `📖 Reading shlok ${input.chapter}.${input.start_verse}${input.end_verse && input.end_verse !== input.start_verse ? "–" + input.end_verse : ""}`,
@@ -1302,7 +1503,7 @@
       h("button", { class: "chat-fab", id: "chat-fab", onclick: () => chatOpen(), "aria-label": "Talk to Saarthi" }, h("span", null, "🙏"), h("span", { class: "fab-label" }, "Saarthi")),
       h("aside", { class: "chat", id: "chat", "aria-label": "Saarthi", hidden: true },
         h("header", { class: "chat-head" },
-          h("div", null, h("strong", null, "🙏 Saarthi"), h("small", null, "Your guide for the Gita, tax and investing videos")),
+          h("div", null, h("strong", null, "🙏 Saarthi"), h("small", null, "Your guide to the Gita and every SKC & CO. service")),
           h("div", null,
             h("button", { class: "icon-btn", title: "New conversation", onclick: chatReset }, "↺"),
             h("button", { class: "icon-btn", title: "Close", onclick: chatClose }, "✕"))),
@@ -1313,8 +1514,8 @@
             h("span", { class: "mic-label", id: "mic-label" }, "Ask by voice"))),
         h("div", { class: "chat-files", id: "chat-files", hidden: true }),
         h("form", { class: "chat-input", onsubmit: (e) => { e.preventDefault(); chatSend(); } },
-          h("input", { type: "file", id: "chat-file", hidden: true, multiple: true, accept: "application/pdf,image/png,image/jpeg,image/webp,image/gif", onchange: (e) => attachFiles(e.target) }),
-          h("button", { class: "attach-btn", type: "button", title: "Attach a PDF or photo (Form 16, salary slip…)", "aria-label": "Attach a PDF or photo", onclick: () => $("#chat-file").click() }, "📎"),
+          h("input", { type: "file", id: "chat-file", hidden: true, multiple: true, accept: "application/pdf,image/png,image/jpeg,image/webp,image/gif,.csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", onchange: (e) => attachFiles(e.target) }),
+          h("button", { class: "attach-btn", type: "button", title: "Attach a PDF, photo, Excel or CSV (Form 16, salary slip, bank statement…)", "aria-label": "Attach a file", onclick: () => $("#chat-file").click() }, "📎"),
           h("textarea", {
             id: "chat-text", rows: 2, placeholder: "Type or speak your question — any language",
             onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(); } },
@@ -1336,7 +1537,7 @@
   function chatReset() {
     if (S.chat.busy) return;
     voice.stopSpeaking();
-    S.chat.messages = []; S.chat.view = [];
+    S.chat.messages = []; S.chat.view = []; S.chat.attached = [];
     chatSave(); chatRender();
   }
   // Attached files stay in memory for this conversation; the copy kept across reloads drops their contents
@@ -1350,13 +1551,29 @@
   }
 
   const MAX_FILE_BYTES = 8 * 1024 * 1024, MAX_FILES = 3;
+  // Excel / CSV as plain text for the AI (SheetJS from vendor/, loaded only when needed). Long files are cut.
+  async function sheetText(f) {
+    const bytes = b64ToBytes(f.data);
+    let text;
+    try {
+      if (f.type === "text/csv") text = new TextDecoder().decode(bytes);
+      else {
+        if (!window.XLSX) await new Promise((resolve, reject) => document.head.append(h("script", { src: "vendor/xlsx.full.min.js", onload: resolve, onerror: reject })));
+        const wb = window.XLSX.read(bytes, { type: "array" });
+        text = wb.SheetNames.map((n) => `# Sheet: ${n}\n${window.XLSX.utils.sheet_to_csv(wb.Sheets[n])}`).join("\n\n");
+      }
+    } catch { text = "(this spreadsheet couldn't be read)"; }
+    const LIMIT = 150000;
+    return text.length > LIMIT ? text.slice(0, LIMIT) + `\n…[cut: the file is longer — ${text.length} characters. Use analyze_bank_statement for complete totals.]` : text;
+  }
   async function attachFiles(input) {
     const picked = [...input.files];
     input.value = "";
     S.chat.files = S.chat.files || [];
     for (const f of picked) {
       if (S.chat.files.length >= MAX_FILES) { toast(`Up to ${MAX_FILES} files at a time.`, "error"); break; }
-      if (!/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(f.type)) { toast(`${f.name}: only PDF or image files can be attached.`, "error"); continue; }
+      const sheet = /\.(csv|xlsx?)$/i.test(f.name);
+      if (!sheet && !/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(f.type)) { toast(`${f.name}: only PDF, photo, Excel or CSV files can be attached.`, "error"); continue; }
       if (f.size > MAX_FILE_BYTES) { toast(`${f.name} is larger than 8 MB.`, "error"); continue; }
       const data = await new Promise((resolve, reject) => {
         const r = new FileReader();
@@ -1364,7 +1581,7 @@
         r.onerror = () => reject(r.error);
         r.readAsDataURL(f);
       }).catch(() => null);
-      if (data) S.chat.files.push({ name: f.name, type: f.type, size: f.size, data });
+      if (data) S.chat.files.push({ name: f.name, type: sheet ? (/\.csv$/i.test(f.name) ? "text/csv" : "spreadsheet") : f.type, size: f.size, data });
     }
     renderFiles();
     $("#chat-text").focus();
@@ -1375,7 +1592,7 @@
     const files = S.chat.files || [];
     box.hidden = !files.length;
     box.replaceChildren(...files.map((f, i) => h("span", { class: "file-chip" },
-      `${f.type === "application/pdf" ? "📄" : "🖼"} ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`,
+      `${f.type === "application/pdf" ? "📄" : /^image\//.test(f.type) ? "🖼" : "📊"} ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`,
       h("button", { type: "button", title: "Remove", onclick: () => { S.chat.files.splice(i, 1); renderFiles(); } }, "✕"))),
       files.length ? h("small", { class: "muted" }, "Files are sent to the AI only to answer you; this site doesn't store them.") : null);
   }
@@ -1389,10 +1606,10 @@
       left.textContent = `Questions left today: ${S.chat.remaining}`;
     }
     if (!S.chat.view.length) {
-      const ideas = ["What is Karma Yoga? Explain simply.", "My salary is ₹15 lakh — which regime is cheaper for me?", "📎 Attach my Form 16 and work out my tax", "What can the Gita teach us about investing? Show me the videos."];
+      const ideas = ["What is Karma Yoga? Explain simply.", "My salary is ₹15 lakh — which regime is cheaper for me?", "📎 Attach my Form 16 and work out my tax", "📎 Analyse my bank statement", "Our firm made ₹40 lakh profit — how much tax, and how much can we pay the partners?", "Which Bihar tenders above ₹10 crore close this week?"];
       log.replaceChildren(h("div", { class: "chat-welcome" },
         h("p", null, `Namaste ${S.name} 🙏`),
-        h("p", null, "I'm Saarthi — here to help with the Gita's verses and life questions, your income tax, and the Gita se Capital Market tak videos. Attach a Form 16, salary slip or other document with 📎 and I'll read it and fill in the tax calculator for you."),
+        h("p", null, "I'm Saarthi — here to help with the Gita's verses and life questions, and with every SKC & CO. service: income tax for individuals, HUFs, firms and companies, bank statements, Bihar tenders, the market scanner, management analysis, documents and the Gita se Capital Market tak videos. Attach a Form 16, salary slip or bank statement with 📎 and I'll read it and fill in the right tool for you."),
         h("p", { class: "muted" }, "Type, or tap 🎤 and speak, in any language — it's detected automatically, and I reply in the same language."),
         h("div", { class: "ideas" }, ideas.map((q) => h("button", {
           class: "chip",
@@ -1425,14 +1642,20 @@
       S.chat.view.push({ role: "user", text }, { role: "bot", text: offlineAnswer(text) });
       ta.value = ""; chatSave(); chatRender(); return;
     }
-    if (files.length && !text) text = "Please read this document, work out my income tax and fill in the calculator.";
+    if (files.length && !text) text = files.some((f) => f.type === "text/csv" || f.type === "spreadsheet") ? "Please analyse this bank statement." : "Please read this document and help me with it — if it's a Form 16, salary slip or tax document, work out my income tax and fill in the calculator; if it's a bank statement, analyse it.";
     ta.value = "";
     S.chat.files = []; renderFiles();
     S.chat.busy = true; $("#chat-send").disabled = true;
-    // Files go first, then the question (PDFs as document blocks, photos as image blocks).
-    const content = files.length ? [...files.map((f) => (f.type === "application/pdf"
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data }, title: f.name }
-      : { type: "image", source: { type: "base64", media_type: f.type, data: f.data } })), { type: "text", text }] : text;
+    // Files go first, then the question: PDFs as document blocks, photos as image blocks, Excel / CSV as text.
+    // They are also kept in memory so a statement can be loaded into the Bank Statement Analyzer.
+    S.chat.attached = [...(S.chat.attached || []), ...files].slice(-6);
+    const blocks = [];
+    for (const f of files) {
+      if (f.type === "application/pdf") blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data }, title: f.name });
+      else if (/^image\//.test(f.type)) blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+      else blocks.push({ type: "document", source: { type: "text", media_type: "text/plain", data: await sheetText(f) }, title: f.name });
+    }
+    const content = files.length ? [...blocks, { type: "text", text }] : text;
     S.chat.messages.push({ role: "user", content });
     S.chat.view.push({ role: "user", text: [...files.map((f) => `📎 ${f.name}`), text].join("\n") });
     const historyMark = S.chat.messages.length - 1;
@@ -1457,7 +1680,7 @@
         for (const block of content.filter((b) => b.type === "tool_use")) {
           S.chat.view.push({ role: "tool", text: toolLabel(block.name, block.input || {}) });
           let out;
-          try { out = tools[block.name] ? tools[block.name](block.input || {}) : { error: `Unknown tool ${block.name}` }; } catch (e) { out = { error: String(e.message || e) }; }
+          try { out = tools[block.name] ? await tools[block.name](block.input || {}) : { error: `Unknown tool ${block.name}` }; } catch (e) { out = { error: String(e.message || e) }; }
           results.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(out), is_error: !!out.error || undefined });
         }
         S.chat.messages.push({ role: "user", content: results });
@@ -1526,8 +1749,15 @@
   function offlineAnswer(question) {
     const q = fold(question);
     if (/(tax|itr|form ?16|आयकर|टैक्स|इनकम|रिजीम|regime)/i.test(question)) {
-      return "### Income Tax Calculator\n[Open the Income Tax Calculator](#/tax) to work out your tax — it compares the new and old regimes, with print and PDF.\n\n*When the AI is connected, Saarthi can read your Form 16 and fill in the calculator for you.*";
+      return "### Income Tax Calculator\n[Open the Income Tax Calculator](#/tax) to work out the tax of an individual, HUF, firm, LLP or company — it compares the options (new vs old regime; normal rates vs 115BAA), with print and PDF.\n\n*When the AI is connected, Saarthi can read your Form 16 and fill in the calculator for you.*";
     }
+    const go = (title, href, text) => `### ${title}\n[Open ${title}](${href}) — ${text}\n\n*When the AI is connected, Saarthi can use this page for you.*`;
+    if (/(bank|statement|passbook|बैंक|स्टेटमेंट)/i.test(question)) return go("Bank Statement Analyzer", "#/bank", "load a PDF, Excel or CSV statement for a summary, monthly cash flow, categories and checks. It is read only in your browser.");
+    if (/(tender|निविदा|टेंडर|eproc|bid)/i.test(question)) return go("Bihar Tenders", "#/tenders", "Bihar Government tenders with values and closing dates.");
+    if (/(scanner|screen|nifty|stock|शेयर|52.?week|dma|breakdown)/i.test(question)) return go("Capital Market Scanner", "#/scanner", "NIFTY 500 chart patterns with the SKC rating (educational, not advice).");
+    if (/(capital|capex|roce|ratio|break.?even|goal|sip|management|प्रबंधन|efficiency|working capital)/i.test(question)) return go("Management Services", "#/management", "tools for capital analysis, business health, capex planning, financial goals and money efficiency.");
+    if (/(vision|bihar.*(document|policy)|विज़न)/i.test(question)) return go("Bihar Vision Documents", "#/vision", "vision and working documents of Bihar, by sector.");
+    if (/(document|news|samachar|समाचार|दस्तावेज़|daily market update)/i.test(question)) return go("Documents & News", "#/library", "the document library, news and the Daily Market Update.");
     if (/(video|वीडियो|market|मार्केट|निवेश|invest|shares?|silver|सिल्वर)/i.test(question)) {
       return "### Gita se Capital Market tak\n[Watch the JMJ Wealth Creator videos here](#/videos). (For educational purposes only; not buy/sell advice.)";
     }
@@ -1628,6 +1858,15 @@
     return { content: blocks.filter(Boolean), stopReason };
   }
 
-  window.GG = { toast };
+  window.GG = {
+    toast, rerender,
+    askSaarthi: (text) => { chatOpen(text); },
+    contact: () => ({ email: S.content.site.contact_email || "", phone: S.content.site.contact_phone || "" }),
+    adminPutFile: ADMIN ? (path, text, message) => {
+      const { owner, repo, token } = ghSettings();
+      if (!owner || !repo || !token) return Promise.reject(new Error("add your GitHub details in Settings first"));
+      return ghPutFile(path, text, message);
+    } : undefined,
+  };
   boot();
 })();
