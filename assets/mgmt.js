@@ -211,7 +211,6 @@
         el("button", { class: "btn", type: "button", onclick: () => { inputs[t.id] = {}; delete results[t.id]; render(root, t.id); } }, "Reset")));
     const out = el("div", { id: "mg-out" });
     root.replaceChildren(
-      el("p", { class: "muted" }, el("a", { href: "#/management" }, "← Management Services")),
       el("h1", { class: "page-title" }, `${t.icon} ${t.title}`),
       el("p", { class: "muted" }, t.about),
       form, out, contactBlock(),

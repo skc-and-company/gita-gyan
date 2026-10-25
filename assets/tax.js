@@ -337,8 +337,9 @@
     put(a) { try { localStorage.setItem(STORE_KEY, JSON.stringify(a)); return true; } catch { say("Couldn't save in this browser.", "error"); return false; } },
   };
 
+  let formEl = null;   // the form, also before it is on screen
   function render(root) {
-    const form = el("div", { id: "tax-form" },
+    const form = formEl = el("div", { id: "tax-form" },
       FIELDS.map(([title, sub, fields, note, types]) => el("section", { class: "tax-card", "data-types": types || ALL },
         el("h2", null, el("span", { class: "tx-l", "data-l": JSON.stringify(title) }), el("span", { class: "muted tx-l", "data-l": JSON.stringify(sub), "data-pre": " " })),
         el("div", { class: "tax-grid" }, fields.map(([id, label, opts, ftypes]) => el("label", { class: "field", "data-types": ftypes || ALL },
@@ -370,22 +371,23 @@
   }
 
   const $ = (id) => document.getElementById(`tx-${id}`);
-  const curEnt = () => $("ent")?.value || "ind";
+  const curEnt = () => formEl?.querySelector("#tx-ent")?.value || "ind";
   // Show only the sections and fields that apply to the chosen taxpayer type, with its labels.
   function applyEnt() {
     const e = curEnt();
-    document.querySelectorAll("#tax-form [data-types]").forEach((x) => { x.hidden = !shownFor(x.dataset.types, e); });
-    document.querySelectorAll("#tax-form .tx-l").forEach((x) => {
+    if (!formEl) return;
+    formEl.querySelectorAll("[data-types]").forEach((x) => { x.hidden = !shownFor(x.dataset.types, e); });
+    formEl.querySelectorAll(".tx-l").forEach((x) => {
       const t = forEnt(JSON.parse(x.dataset.l), e);
       x.textContent = t ? (x.dataset.pre || "") + t : "";
       if (x.tagName === "P") x.hidden = !t;
     });
     // number the income heads that apply (an HUF, firm or company has no salary head)
     let k = 0;
-    document.querySelectorAll("#tax-form > .tax-card:not([hidden]) > h2 > .tx-l:first-child").forEach((x) => {
+    formEl.querySelectorAll(":scope > .tax-card:not([hidden]) > h2 > .tx-l:first-child").forEach((x) => {
       if (/^\d+\. /.test(x.textContent)) x.textContent = `${++k}. ${x.textContent.replace(/^\d+\. /, "")}`;
     });
-    document.querySelectorAll("#tax-form select[data-opts]").forEach((s) => {
+    formEl.querySelectorAll("select[data-opts]").forEach((s) => {
       const opts = forEnt(JSON.parse(s.dataset.opts), e), v = s.value;
       s.replaceChildren(...opts.map(([val, t]) => el("option", { value: val }, t)));
       s.value = opts.some(([val]) => val === v) ? v : opts[0][0];

@@ -181,9 +181,9 @@
     try {
       S.config = await (await fetchFresh("data/config.json")).json();
     } catch {
-      S.config = { title: "Gita Gyan", tagline: "" };
+      S.config = { title: "SKC & CO.", tagline: "" };
     }
-    document.title = (S.config.title || "Gita Gyan") + (ADMIN ? " · Admin" : "");
+    document.title = (S.config.title || "SKC & CO.") + (ADMIN ? " · Admin" : "");
     const saved = store.get(LS.auth);
     if (saved?.password) {
       const ok = await tryLogin(saved.name, saved.password, true).catch(() => false);
@@ -212,8 +212,8 @@
         if (!ok) { btn.disabled = false; btn.textContent = "Enter"; passIn.select(); }
       },
     },
-      h("div", { class: "login-om", "aria-hidden": "true" }, "ॐ"),
-      h("h1", null, S.config.title || "Gita Gyan"),
+      h("div", { class: "login-mark", "aria-hidden": "true" }, "SKC"),
+      h("h1", null, S.config.title || "SKC & CO."),
       S.config.tagline ? h("p", { class: "login-tag" }, S.config.tagline) : null,
       ADMIN ? h("p", { class: "admin-pill" }, "Admin") : null,
       h("label", { for: "login-name" }, "Name"), nameIn,
@@ -262,11 +262,16 @@
       ADMIN ? adminBar() : null,
       header(),
       h("main", { id: "view", tabindex: "-1" }),
-      h("footer", { class: "site-footer" }, h("div", { id: "footer-text" })),
+      h("footer", { class: "site-footer" }, h("div", { class: "footer-map", id: "footer-map" }), h("div", { class: "footer-text", id: "footer-text" })),
     ].filter(Boolean));
     renderFooter();
     chatMount();
     window.addEventListener("hashchange", () => { if (!S.keepEditing) S.editing = null; S.keepEditing = false; route(); });
+    // Close an open header menu when tapping anywhere else; only one dropdown open at a time.
+    document.addEventListener("click", (e) => {
+      document.querySelectorAll(".nav-group[open], .menu[open]").forEach((d) => { if (!d.contains(e.target)) d.removeAttribute("open"); });
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".nav-group[open], .menu[open]").forEach((d) => d.removeAttribute("open")); });
     route();
   }
 
@@ -277,48 +282,74 @@
         onclick: (e) => { S.prefs[k] = !S.prefs[k]; store.set(LS.prefs, S.prefs); e.currentTarget.classList.toggle("on", S.prefs[k]); e.currentTarget.setAttribute("aria-pressed", String(S.prefs[k])); document.body.classList.toggle(`hide-${k}`, !S.prefs[k]); },
       }, label));
     for (const k of ["sa", "tr", "hi", "en"]) document.body.classList.toggle(`hide-${k}`, !S.prefs[k]);
+    const sugg = h("div", { class: "search-sugg", hidden: true, role: "listbox" });
     const search = h("form", {
       class: "search", role: "search",
-      onsubmit: (e) => { e.preventDefault(); const q = e.currentTarget.q.value.trim(); if (q) location.hash = `#/search?q=${encodeURIComponent(q)}`; },
-    }, h("input", { name: "q", type: "search", placeholder: "Search", "aria-label": "Search" }));
+      onsubmit: (e) => { e.preventDefault(); const q = e.currentTarget.q.value.trim(); sugg.hidden = true; if (q) location.hash = `#/search?q=${encodeURIComponent(q)}`; },
+    }, h("input", { name: "q", type: "search", placeholder: "Search tools or the Gita…", "aria-label": "Search tools, pages or the Gita", autocomplete: "off",
+      oninput: (e) => showSuggestions(e.target.value, sugg), onfocus: (e) => showSuggestions(e.target.value, sugg),
+      onblur: () => setTimeout(() => { sugg.hidden = true; }, 150), onkeydown: (e) => { if (e.key === "Escape") { sugg.hidden = true; e.target.blur(); } } }), sugg);
+    const groupLinks = (g) => g.tools.map((t) => h("a", { href: t.href }, h("span", { class: "nav-ico", "aria-hidden": "true" }, t.icon), h("span", null, h("b", null, t.title), h("small", null, t.about))));
     const menu = h("details", { class: "menu" },
-      h("summary", { "aria-label": "Menu" }, "☰"),
+      h("summary", { "aria-label": "Menu" }, h("span", { class: "menu-ico", "aria-hidden": "true" }, "☰"), h("span", { class: "menu-word" }, "Menu")),
       h("div", { class: "menu-panel" },
-        h("div", { class: "menu-label" }, "Show"),
-        h("div", { class: "chips" }, toggles),
-        h("div", { class: "menu-label" }, "Text size"),
-        h("div", { class: "chips" },
-          h("button", { class: "chip", onclick: () => setScale(-0.1) }, "A−"),
-          h("button", { class: "chip", onclick: () => setScale(0) }, "A"),
-          h("button", { class: "chip", onclick: () => setScale(0.1) }, "A+")),
-        h("div", { class: "menu-label" }, "Theme"),
-        h("div", { class: "chips" },
-          h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
-          h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark")),
-        h("div", { class: "menu-label" }, "Services"),
-        h("div", { class: "menu-links" },
-          h("a", { href: "#/chapters" }, "📖 Chapters"),
-          SERVICES.map(([id, icon, title]) => h("a", { href: `#/${id}` }, `${icon} ${title}`))),
-        h("div", { class: "menu-label" }, "Pages"),
-        h("div", { id: "menu-pages", class: "menu-links" }),
-        h("hr"),
-        h("div", { class: "menu-user" }, `🙏 ${S.name}`),
-        h("button", { class: "btn small ghost", onclick: logout }, "Logout"),
-      ));
+        h("div", { class: "menu-section" },
+          h("div", { class: "menu-label" }, "Go to"),
+          h("a", { class: "menu-home", href: "#/" }, "🏠 Home — all services"),
+          GROUPS.map((g) => h("details", { class: "menu-group" }, h("summary", null, `${g.icon}  ${g.title}`), h("div", { class: "menu-links" }, g.tools.map((t) => h("a", { href: t.href }, `${t.icon} ${t.title}`)))))),
+        h("div", { class: "menu-section" },
+          h("div", { class: "menu-label" }, "Reading the Gita — show"),
+          h("div", { class: "chips" }, toggles),
+          h("div", { class: "menu-label" }, "Text size"),
+          h("div", { class: "chips" },
+            h("button", { class: "chip", onclick: () => setScale(-0.1) }, "A−"),
+            h("button", { class: "chip", onclick: () => setScale(0) }, "A"),
+            h("button", { class: "chip", onclick: () => setScale(0.1) }, "A+")),
+          h("div", { class: "menu-label" }, "Theme"),
+          h("div", { class: "chips" },
+            h("button", { class: `chip theme-chip ${S.prefs.theme !== "dark" ? "on" : ""}`, "data-theme-choice": "light", onclick: () => setTheme("light") }, "☀️ Light"),
+            h("button", { class: `chip theme-chip ${S.prefs.theme === "dark" ? "on" : ""}`, "data-theme-choice": "dark", onclick: () => setTheme("dark") }, "🌙 Dark"))),
+        h("div", { class: "menu-section" },
+          h("div", { class: "menu-label" }, "Pages"),
+          h("div", { id: "menu-pages", class: "menu-links" })),
+        h("div", { class: "menu-section menu-foot" },
+          h("span", { class: "menu-user" }, `🙏 ${S.name}`),
+          h("button", { class: "btn small ghost", onclick: logout }, "Log out"))));
     return h("header", { class: "site-header" },
-      h("a", { href: "#/", class: "brand" }, h("span", { class: "brand-om" }, "ॐ"), h("span", { id: "brand-title" }, S.content.site.title)),
-      h("nav", { class: "main-nav" },
-        h("a", { href: "#/chapters" }, "Chapters"),
-        h("a", { href: "#/tax" }, "Tax"),
-        h("a", { href: "#/bank" }, "Bank"),
-        h("details", { class: "nav-services" },
-          h("summary", null, "Services ▾"),
-          h("div", { class: "nav-services-menu" }, SERVICES.map(([id, icon, title]) => h("a", { href: `#/${id}` }, `${icon} ${title}`))))),
+      h("a", { href: "#/", class: "brand", "aria-label": "SKC & CO. — home" }, h("span", { class: "brand-mark", "aria-hidden": "true" }, "SKC"), h("span", { class: "brand-name" }, "SKC & CO.")),
+      h("nav", { class: "main-nav", "aria-label": "Services" },
+        GROUPS.map((g) => h("details", { class: "nav-group", "data-group": g.id },
+          h("summary", null, g.title, h("span", { class: "caret", "aria-hidden": "true" }, "▾")),
+          h("div", { class: "nav-panel" },
+            h("div", { class: "nav-panel-head" }, h("b", null, `${g.icon} ${g.title}`), h("small", null, g.about)),
+            groupLinks(g),
+            h("a", { class: "nav-panel-all", href: `#/s/${g.id}` }, `All of ${g.title} →`))))),
       search, menu);
   }
 
+  // Search suggestions: matching tools and pages first, then a Gita search.
+  function matchTools(q) {
+    const words = fold(q).split(/\s+/).filter((w) => w.length > 1);
+    if (!words.length) return [];
+    return TOOLS.map((t) => {
+      const hay = fold(`${t.title} ${t.about} ${t.keys} ${t.group.title}`);
+      const score = words.reduce((n, w) => n + (fold(t.title).includes(w) ? 3 : hay.includes(w) ? 1 : 0), 0);
+      return { t, score };
+    }).filter((x) => x.score).sort((a, b) => b.score - a.score).map((x) => x.t);
+  }
+  function showSuggestions(q, box) {
+    q = q.trim();
+    if (!q) { box.hidden = true; return; }
+    const tools = matchTools(q).slice(0, 5);
+    box.replaceChildren(
+      ...tools.map((t) => h("a", { class: "sugg", href: t.href, role: "option", onmousedown: (e) => e.preventDefault(), onclick: () => { box.hidden = true; } },
+        h("span", { class: "nav-ico", "aria-hidden": "true" }, t.icon), h("span", null, h("b", null, t.title), h("small", null, t.group.title)))),
+      h("a", { class: "sugg", href: `#/search?q=${encodeURIComponent(q)}`, role: "option", onmousedown: (e) => e.preventDefault(), onclick: () => { box.hidden = true; } },
+        h("span", { class: "nav-ico", "aria-hidden": "true" }, "🔎"), h("span", null, h("b", null, `Search the Gita for “${q}”`), h("small", null, "Sanskrit, English and Hindi"))));
+    box.hidden = false;
+  }
+
   function refreshChrome() {
-    $("#brand-title").textContent = S.content.site.title;
     const links = $("#menu-pages");
     links.replaceChildren(...S.content.pages.map((p) => h("a", { href: `#/p/${p.id}` }, p.title)));
     if (ADMIN) links.append(h("a", { href: "#/p/new", class: "muted" }, "+ New page"));
@@ -326,6 +357,9 @@
   }
 
   function renderFooter() {
+    const map = $("#footer-map");
+    if (map) map.replaceChildren(...GROUPS.map((g) => h("div", null, h("a", { class: "foot-head", href: `#/s/${g.id}` }, g.title), g.tools.map((t) => h("a", { href: t.href }, t.title)))),
+      h("div", null, h("span", { class: "foot-head" }, "SKC & CO."), h("a", { href: "#/" }, "Home"), S.content.pages.map((p) => h("a", { href: `#/p/${p.id}` }, p.title)), h("a", { href: "#", onclick: (e) => { e.preventDefault(); chatOpen(); } }, "Ask Saarthi")));
     const f = $("#footer-text");
     if (f) f.innerHTML = md(S.content.site.footer || "");
   }
@@ -366,11 +400,25 @@
     else if (parts[0] === "management") node = viewModule("mg-page", window.GGMgmt, (m, box) => m.render(box, parts[1]));
     else if (parts[0] === "library") node = viewLibrary();
     else if (parts[0] === "vision") node = viewVision();
-    else node = viewHome();
+    else if (parts[0] === "gita") node = viewHome();
+    else if (parts[0] === "s" && GROUPS.some((g) => g.id === parts[1])) node = viewGroup(parts[1]);
+    else node = viewPortal();
+    // Every tool page gets a breadcrumb, "How to use" and Ask Saarthi on top; Gita pages a breadcrumb.
+    const tool = toolById(parts[0]);
+    if (tool) {
+      const sub = parts[0] === "management" && parts[1] ? (window.GGMgmt?.TOOLS.find((x) => x.id === parts[1]) || {}).title : null;
+      node = h("div", null, toolChrome(tool, sub), node);
+    } else if (parts[0] === "c" && findChapter(+parts[1])) {
+      const c = findChapter(+parts[1]);
+      node = h("div", null, h("div", { class: "tool-bar noprint" }, crumbs([["Gita Gyan", "#/gita"], [`Chapter ${c.n}`, parts[2] ? `#/c/${c.n}` : null], ...(parts[2] ? [[`Shlok ${c.n}.${parts[2]}`, null]] : [])])), node);
+    }
+    const section = parts[0] === "c" || parts[0] === "gita" || parts[0] === "chapters" ? "gita" : tool ? tool.group.id : parts[0] === "s" ? parts[1] : "home";
+    document.body.dataset.section = section;
+    document.querySelectorAll(".nav-group").forEach((d) => { d.classList.toggle("current", d.dataset.group === section); d.removeAttribute("open"); });
     document.body.dataset.route = parts[0] || "home";
     view.replaceChildren(node);
     $(".menu")?.removeAttribute("open");
-    $(".nav-services")?.removeAttribute("open");
+    const box = $(".search-sugg"); if (box) box.hidden = true;
     if (!rerendering) window.scrollTo(0, 0);
     updateAdminBar();
     const target = parts[0] === "c" && parts[2] && $(`#s-${parts[1]}-${parts[2]}`);
@@ -398,37 +446,134 @@
           h("div", { class: "hero-om", "aria-hidden": "true" }, "ॐ"),
           h("h1", null, site.title),
           h("p", { class: "hero-sub" }, site.subtitle),
-          site.announcement ? h("div", { class: "announce", html: md(site.announcement) }) : null,
           h("div", { class: "prose intro", html: md(site.intro) }),
           h("div", { class: "hero-actions" },
             h("a", { class: "btn primary", href: "#/c/1" }, "Start reading"),
             h("button", { class: "btn", onclick: () => chatOpen() }, "🙏 Ask Saarthi"))),
-        "Edit home"),
+        "Edit Gita introduction"),
       today ? h("section", { class: "today" },
         h("h2", { class: "section-title" }, "Shlok of the day"),
         shlokCard(findChapter(today.c), today.s, { compact: true })) : null,
       h("section", null,
         h("h2", { class: "section-title" }, `${chapters().length} Chapters · ${totalShlokas()} Shlokas`),
-        chapterGrid()),
-      h("section", null,
-        h("h2", { class: "section-title" }, "More from SKC & CO."),
-        h("div", { class: "service-grid" }, SERVICES.map(([id, icon, title, about]) => h("a", { class: "chapter-card service-card", href: `#/${id}` },
-          h("span", { class: "service-icon", "aria-hidden": "true" }, icon),
-          h("span", { class: "cc-sa" }, title),
-          h("span", { class: "cc-en" }, about))))));
+        chapterGrid()));
   }
 
-  /* ---------- SKC & CO. services (pages in assets/tax.js, bank.js, markets.js, mgmt.js) ---------- */
-  const SERVICES = [
-    ["tax", "₹", "Income Tax Calculator", "Individuals, HUFs, firms, LLPs and companies — Tax Year 2026-27; Saarthi can fill it from a Form 16"],
-    ["bank", "🏦", "Bank Statement Analyzer", "PDF, Excel or CSV statements — cash flow, categories, counterparties; read privately in your browser"],
-    ["tenders", "📋", "Bihar Tenders", "Bihar Government tenders — service ₹2 crore+, works and goods ₹50 crore+, with closing dates"],
-    ["scanner", "📈", "Capital Market Scanner", "NIFTY 500 chart patterns with the SKC rating — educational screening"],
-    ["management", "📊", "Management Services", "Capital, business health, capex, goals and money-efficiency tools"],
-    ["vision", "🗺️", "Bihar Vision Documents", "Vision and working documents of Bihar and the Bihar Government, by sector"],
-    ["library", "📁", "Documents & News", "Searchable library, curated news and the Daily Market Update"],
-    ["videos", "▶", "Gita se Capital Market tak", "JMJ Wealth Creator videos — investing lessons from the Gita"],
+  /* ---------- the SKC & CO. home page ---------- */
+  function viewPortal() {
+    const site = S.content.site;
+    const all = allShlokas();
+    const today = all.length ? all[Math.floor(Date.now() / 86400000) % all.length] : null;
+    const quick = [["🧮", "Calculate income tax", "#/tax"], ["🏦", "Analyse a bank statement", "#/bank"], ["📋", "Find Bihar tenders", "#/tenders"], ["📖", "Read the Gita", "#/gita"]];
+    const pulse = h("div", { class: "pulse-grid" });
+    const portal = h("div", { class: "portal" },
+      h("section", { class: "portal-hero" },
+        h("p", { class: "portal-hello" }, `Namaste, ${S.name} 🙏`),
+        h("h1", null, "SKC & CO."),
+        h("p", { class: "portal-sub" }, "Tax and accounts, business advisory, markets, a library — and the Bhagavad Gita. Everything in one place, with Saarthi to help."),
+        site.announcement ? h("div", { class: "announce", html: md(site.announcement) }) : null,
+        h("form", { class: "portal-search", role: "search", onsubmit: (e) => { e.preventDefault(); const q = e.currentTarget.q.value.trim(); if (!q) return; const t = matchTools(q)[0]; location.hash = t && fold(t.title).includes(fold(q)) ? t.href : `#/search?q=${encodeURIComponent(q)}`; } },
+          h("input", { name: "q", type: "search", placeholder: "What do you need?  e.g. tax for a firm, bank statement, tenders, karma…", "aria-label": "Search tools, pages or the Gita" }),
+          h("button", { class: "btn primary", type: "submit" }, "Search")),
+        h("div", { class: "quick" }, quick.map(([i, t, href]) => h("a", { class: "quick-chip", href }, h("span", { "aria-hidden": "true" }, i), t)),
+          h("button", { class: "quick-chip", type: "button", onclick: () => chatOpen() }, h("span", { "aria-hidden": "true" }, "🙏"), "Ask Saarthi"))),
+      h("section", null,
+        h("h2", { class: "section-title" }, "Services"),
+        h("div", { class: "group-grid" }, GROUPS.map((g) => h("article", { class: `group-card g-${g.id}` },
+          h("a", { class: "group-head", href: `#/s/${g.id}` }, h("span", { class: "group-icon", "aria-hidden": "true" }, g.icon), h("span", null, h("b", null, g.title), h("small", null, g.about))),
+          h("div", { class: "group-tools" }, g.tools.map((t) => h("a", { href: t.href }, h("span", { class: "nav-ico", "aria-hidden": "true" }, t.icon), h("span", null, h("b", null, t.title), h("small", null, t.about)), h("span", { class: "go", "aria-hidden": "true" }, "→")))))))),
+      h("section", null,
+        h("h2", { class: "section-title" }, "Today"),
+        pulse),
+      editable("home", () => editHomeForm(), h("span"), "Edit site settings & Gita introduction"));
+    // "Today": the shlok of the day, tenders closing soon and the newest Daily Market Update.
+    const card = (cls, title, body, href, more) => h("a", { class: `pulse ${cls}`, href }, h("small", null, title), body, h("span", { class: "pulse-more" }, more));
+    if (today) {
+      const c = findChapter(today.c);
+      pulse.append(card("p-gita", "Shlok of the day", h("p", { class: "pulse-sa" }, (today.s.sa || "").split("\n")[0]), `#/c/${today.c}/${today.s.v}`, `Read ${today.c}.${today.s.v} · ${c?.en || ""} →`));
+    }
+    const dmu = byDate((libraryData().documents || []).filter((x) => x.category === "Daily Market Update"))[0];
+    pulse.append(card("p-lib", "Daily Market Update", h("p", null, dmu ? dmu.title : "Added here on market days."), "#/library", dmu ? `${dmu.date} →` : "Open the library →"));
+    const tCard = card("p-ten", "Bihar tenders", h("p", null, "Checking…"), "#/tenders", "See all tenders →");
+    pulse.append(tCard);
+    window.GGMarkets?.searchTenders({ closing_within_days: 7 }).then((r) => {
+      tCard.querySelector("p").textContent = `${r.matches} tender${r.matches === 1 ? "" : "s"} closing within 7 days${r.data_age_days > 2 ? ` (data ${r.data_age_days} days old)` : ""}`;
+    }).catch(() => { tCard.querySelector("p").textContent = "Live Bihar Government tenders with closing dates."; });
+    return portal;
+  }
+
+  function viewGroup(id) {
+    const g = GROUPS.find((x) => x.id === id);
+    return h("div", { class: "group-page" },
+      h("div", { class: "tool-bar noprint" }, crumbs([[g.title, null]])),
+      h("h1", { class: "page-title" }, `${g.icon} ${g.title}`),
+      h("p", { class: "lead" }, g.about),
+      h("div", { class: "tool-grid" }, g.tools.map((t) => h("a", { class: "tool-card", href: t.href },
+        h("span", { class: "tool-icon", "aria-hidden": "true" }, t.icon),
+        h("b", null, t.title), h("span", null, t.about),
+        t.help ? h("ol", null, t.help.slice(0, 3).map((x) => h("li", null, x))) : null,
+        h("span", { class: "go" }, "Open →")))),
+      h("p", { class: "muted center" }, "Not sure where to start? ", h("a", { href: "#", onclick: (e) => { e.preventDefault(); chatOpen(); } }, "Ask Saarthi"), " — it can use every tool for you."));
+  }
+
+  /* ---------- SKC & CO.: what the site offers, in five groups ----------
+   * One list drives the header menus, the home page, group pages, breadcrumbs, "How to use" help,
+   * the footer and the site search, so everything stays in the same place everywhere. */
+  const GROUPS = [
+    { id: "gita", icon: "ॐ", title: "Gita Gyan", about: "The Shrimad Bhagavad Gita — Sanskrit, Roman, English and Hindi meaning, with Saarthi to explain any verse.",
+      tools: [
+        { id: "gita", icon: "📖", title: "Read the Gita", href: "#/gita", about: "Introduction, shlok of the day and all 18 chapters", keys: "gita bhagavad shlok verse read krishna arjuna",
+          help: ["Pick a chapter, or open the shlok of the day.", "Use ☰ → Show to hide Sanskrit, Roman, English or Hindi.", "Tap 🙏 on any shlok to ask Saarthi about it; 🔗 copies its link."] },
+        { id: "chapters", icon: "📜", title: "All 18 chapters", href: "#/chapters", about: "Jump straight to any chapter", keys: "chapter adhyay list",
+          help: ["Tap a chapter to read it; use “Go to shlok” at the top to jump within it."] },
+      ] },
+    { id: "taxacc", icon: "₹", title: "Tax & Accounts", about: "Work out income tax and make sense of bank statements — for individuals, HUFs, firms and companies.",
+      tools: [
+        { id: "tax", icon: "🧮", title: "Income Tax Calculator", href: "#/tax", about: "Individuals, HUFs, firms, LLPs and companies — Tax Year 2026-27, every option compared", keys: "income tax itr form 16 regime huf firm llp company mat 115baa salary calculator",
+          help: ["Choose the taxpayer type — only the boxes that apply are shown.", "Enter the figures you have; leave the rest blank.", "Press Compute tax: each option open to the taxpayer is worked out and the cheaper one is marked.", "Print, save in this browser, or download a PDF / CSV.", "Shortcut: attach a Form 16 to Saarthi and it fills this in for you."] },
+        { id: "bank", icon: "🏦", title: "Bank Statement Analyzer", href: "#/bank", about: "PDF, Excel or CSV statements — cash flow, categories, counterparties and checks", keys: "bank statement passbook cash flow upi neft analyse analyzer current account",
+          help: ["Choose Individual or Business (current / OD / CC accounts).", "Drop the statement (PDF, Excel or CSV) on the box. It is read only in this browser.", "Read “What stands out”, then check the categories — change any that are wrong.", "Export to Excel or PDF, or ask Saarthi what to do next."] },
+      ] },
+    { id: "business", icon: "📊", title: "Business & Advisory", about: "Analyse a business, plan investments and goals, and find Bihar Government tenders.",
+      tools: [
+        { id: "management", icon: "📊", title: "Management Services", href: "#/management", about: "Capital, business health, capex, financial goals and money efficiency — five working tools", keys: "management capital roce business ratio break even capex npv irr goal sip efficiency advisory working capital",
+          help: ["Pick one of the five tools.", "Press “Fill sample” to see how it works, then enter your own figures.", "Press Analyse for the results and what they mean.", "Print the result, or contact SKC & CO. for a full review."] },
+        { id: "tenders", icon: "📋", title: "Bihar Tenders", href: "#/tenders", about: "Bihar Government tenders — service ₹2 crore+, works and goods ₹50 crore+, with closing dates", keys: "tender bihar eproc nit bid contract government",
+          help: ["Pick a tab: service, works / goods, new, closing soon or closed.", "Search, filter by department or minimum value, and sort.", "Open the official portal and search the tender ID to bid. Always check details there."] },
+      ] },
+    { id: "markets", icon: "📈", title: "Markets & Learning", about: "An educational market screen and videos that connect the Gita with investing.",
+      tools: [
+        { id: "scanner", icon: "📈", title: "Capital Market Scanner", href: "#/scanner", about: "NIFTY 500 chart patterns with the SKC rating — educational screening", keys: "stock share market scanner nifty pattern 52 week low dma breakdown rating",
+          help: ["Pick a pattern tab.", "Filter by rating or dividend payers; tap a column heading to sort.", "Hover over a score to see how it is made up. This is education, not advice."] },
+        { id: "videos", icon: "▶", title: "Gita se Capital Market tak", href: "#/videos", about: "JMJ Wealth Creator videos — investing lessons from the Gita", keys: "video youtube jmj wealth investing silver",
+          help: ["Play a video here or open it on YouTube."] },
+      ] },
+    { id: "library", icon: "📁", title: "Library", about: "Documents, curated news, the Daily Market Update and Bihar's vision documents.",
+      tools: [
+        { id: "library", icon: "📁", title: "Documents & News", href: "#/library", about: "Searchable documents, curated news and the Daily Market Update", keys: "document news daily market update pdf library",
+          help: ["Switch between News and Documents.", "Search or filter by source / category.", "The newest Daily Market Update is shown at the top of Documents."] },
+        { id: "vision", icon: "🗺️", title: "Bihar Vision Documents", href: "#/vision", about: "Vision and working documents of Bihar and the Bihar Government, by sector", keys: "bihar vision policy government sector document",
+          help: ["Documents are grouped by sector; open any to read it."] },
+      ] },
   ];
+  const TOOLS = GROUPS.flatMap((g) => g.tools.map((t) => ({ ...t, group: g })));
+  const toolById = (id) => TOOLS.find((t) => t.id === id);
+
+  function crumbs(items) {
+    return h("nav", { class: "crumbs", "aria-label": "Breadcrumb" },
+      [["Home", "#/"], ...items].map(([label, href], i, a) => [i ? h("span", { class: "crumb-sep", "aria-hidden": "true" }, "›") : null,
+        href && i < a.length - 1 ? h("a", { href }, label) : h("span", { "aria-current": i === a.length - 1 ? "page" : null }, label)]));
+  }
+  // Breadcrumb, "How to use" and Ask Saarthi above every tool page.
+  function toolChrome(t, extraCrumb) {
+    if (!t) return null;
+    return h("div", { class: "tool-bar noprint" },
+      crumbs([[t.group.title, `#/s/${t.group.id}`], [t.title, extraCrumb ? t.href : null], ...(extraCrumb ? [[extraCrumb, null]] : [])]),
+      h("div", { class: "tool-bar-actions" },
+        t.help ? h("details", { class: "howto" }, h("summary", null, "ⓘ How to use"), h("ol", null, t.help.map((x) => h("li", null, x)))) : null,
+        h("button", { class: "btn small", type: "button", onclick: () => chatOpen() }, "🙏 Ask Saarthi")));
+  }
+
   function viewModule(cls, mod, draw) {
     const box = h("div", { class: cls });
     if (mod) draw(mod, box);
@@ -706,6 +851,7 @@
     const p = S.content.pages.find((x) => x.id === id);
     if (!p) return notFound();
     return h("article", { class: "page" },
+      h("div", { class: "tool-bar noprint" }, crumbs([[p.title, null]])),
       editable(`p:${p.id}`, () => editPageForm(p),
         h("div", null, h("h1", { class: "page-title" }, p.title), h("div", { class: "prose", html: md(p.body) })),
         "Edit page"));
@@ -723,8 +869,13 @@
       }
     }
     const ref = q.match(/^\s*(\d{1,2})[.: ](\d{1,3})\s*$/);
+    const tools = matchTools(q);
     return h("div", { class: "search-view" },
+      h("div", { class: "tool-bar noprint" }, crumbs([["Search", null]])),
       h("h1", { class: "page-title" }, `“${q}”`),
+      tools.length ? h("section", null, h("h2", { class: "section-title" }, "Tools & pages"),
+        h("div", { class: "tool-grid" }, tools.slice(0, 6).map((t) => h("a", { class: "tool-card small", href: t.href }, h("span", { class: "tool-icon", "aria-hidden": "true" }, t.icon), h("b", null, t.title), h("span", null, t.about), h("small", { class: "muted" }, t.group.title))))) : null,
+      h("h2", { class: "section-title" }, "In the Gita"),
       ref && findShlok(+ref[1], +ref[2]) ? h("p", null, h("a", { class: "btn primary", href: `#/c/${ref[1]}/${ref[2]}` }, `Open shlok ${ref[1]}.${ref[2]} →`)) : null,
       h("p", { class: "muted" }, hits.length ? `${hits.length}${hits.length >= 200 ? "+" : ""} results` : "No results"),
       h("ol", { class: "results" }, hits.map(({ c, s, text }) => h("li", null,
@@ -849,11 +1000,11 @@
 
   function editHomeForm() {
     const site = S.content.site;
-    return form("Home page", [
-      field("Site title", "title", site.title),
-      field("Subtitle", "subtitle", site.subtitle),
-      field("Announcement (optional, shows as a banner)", "announcement", site.announcement, { rows: 2 }),
-      field("Introduction (markdown)", "intro", site.intro, { rows: 8 }),
+    return form("Site settings & Gita introduction", [
+      field("Announcement (optional — a banner on the home page)", "announcement", site.announcement, { rows: 2 }),
+      field("Gita section title", "title", site.title),
+      field("Gita section subtitle", "subtitle", site.subtitle),
+      field("Gita introduction (markdown)", "intro", site.intro, { rows: 8 }),
       field("Footer / copyright", "footer", site.footer, { rows: 2 }),
       field("Enquiry email (shown on Management Services)", "contact_email", site.contact_email, { type: "email" }),
       field("Enquiry phone (optional)", "contact_phone", site.contact_phone),
@@ -1245,7 +1396,7 @@
       calculator_filled: !!filled, note: "Figures from the site's Income Tax Calculator (Tax Year 2026-27). Estimate for guidance, not tax advice.",
     };
   }
-  const PAGES = { home: "#/", chapters: "#/chapters", tax: "#/tax", videos: "#/videos", bank: "#/bank", tenders: "#/tenders", scanner: "#/scanner",
+  const PAGES = { home: "#/", gita: "#/gita", chapters: "#/chapters", tax: "#/tax", videos: "#/videos", bank: "#/bank", tenders: "#/tenders", scanner: "#/scanner",
     management: "#/management", vision: "#/vision", library: "#/library" };
   Object.assign(tools, {
     calculate_tax(i) {
