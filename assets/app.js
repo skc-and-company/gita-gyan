@@ -653,22 +653,100 @@
   }
 
   /* ---------- Documents & News (#/library) and Bihar Vision documents (#/vision) ----------
-   * Lists live in the encrypted content (S.content.library); files the admin uploads are committed to
-   * docs/ in the GitHub repository, so they are public — only upload documents meant to be shared. */
+   * Lists live in the encrypted content (S.content.library). Files the admin uploads are encrypted in the browser
+   * with a random key before they are committed to docs/ in the (public) GitHub repository; the key is kept in the
+   * encrypted content, so only readers who know the site password can open them. */
   const VISION_SECTIONS = [["economy", "Economy"], ["industry", "Industry"], ["agriculture", "Agriculture"], ["infrastructure", "Infrastructure"],
     ["education", "Education"], ["health", "Health"], ["policies_schemes", "Policies & Schemes"], ["analysis_documents", "Analysis Documents"]];
   const libraryData = () => S.content.library || { news: [], documents: [], vision: [] };
   const byDate = (a) => a.slice().sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
   const LIB = { tab: "news", q: "", cat: "" };
   const isUrl = (u) => /^(https?:\/\/|docs\/)/i.test(String(u || "").trim());
-  const fileLink = (u, label = "Open") => (isUrl(u) ? h("a", { class: "btn small", href: u.trim(), target: "_blank", rel: "noopener" }, label) : null);
+  const fileLink = (x, label = "Open") => (x.key
+    ? h("button", { class: "btn small", type: "button", onclick: () => openDoc(x) }, `🔒 ${label}`)
+    : isUrl(x.file) ? h("a", { class: "btn small", href: x.file.trim(), target: "_blank", rel: "noopener" }, label) : null);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const docSlug = (name) => name.toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "document";
+  const docTitle = (name) => name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  const DOC_TYPES = /\.(pdf|docx?|xlsx?|pptx?|png|jpe?g)$/i;
+
+  // Encrypt a file with a fresh random key (AES-256-GCM), commit the ciphertext, return what to store in the list.
+  async function uploadEncrypted(file, folder) {
+    if (file.size > 20 * 1024 * 1024) throw new Error(`${file.name} is over 20 MB`);
+    const key = crypto.getRandomValues(new Uint8Array(32)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const k = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, new Uint8Array(await file.arrayBuffer())));
+    const path = `${folder}/${today()}-${docSlug(file.name)}-${bytesToB64(crypto.getRandomValues(new Uint8Array(4))).replace(/[^a-z0-9]/gi, "").toLowerCase()}.enc`;
+    await ghPutBytes(path, ct, `Add encrypted document ${file.name}`);
+    return { file: path, key: bytesToB64(key), iv: bytesToB64(iv), mime: file.type || "application/octet-stream", name: file.name, size: String(file.size) };
+  }
+  // Open an encrypted document: fetch, decrypt with its key, show it in a new tab (or download it).
+  async function openDoc(x) {
+    const win = /pdf|image/.test(x.mime || "") ? window.open("", "_blank") : null;
+    if (win) win.document.write("<p style='font:16px system-ui;padding:2rem'>Opening the document…</p>");
+    try {
+      const res = await fetch(x.file, { cache: "force-cache" });
+      if (!res.ok) throw new Error(res.status === 404 ? "it isn't on the site yet — it can take a minute after publishing" : `HTTP ${res.status}`);
+      const k = await crypto.subtle.importKey("raw", b64ToBytes(x.key), "AES-GCM", false, ["decrypt"]);
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(x.iv) }, k, await res.arrayBuffer());
+      const url = URL.createObjectURL(new Blob([plain], { type: x.mime || "application/octet-stream" }));
+      if (win) win.location.href = url;
+      else { const a = h("a", { href: url, download: x.name || "document" }); document.body.append(a); a.click(); a.remove(); }
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (e) {
+      win?.close();
+      toast(`Couldn't open the document — ${e.message}`, "error");
+    }
+  }
+
+  // Admin: drop one or more files → each is encrypted, uploaded and listed, then everything is published.
+  function quickUpload(kind, section) {
+    if (!ADMIN) return null;
+    const cat = h("input", { name: "qcat", placeholder: kind === "vision" ? "" : "e.g. Bihar Industrial Policy, Tax, Daily Market Update", value: QU.cat });
+    const status = h("p", { class: "muted", role: "status" });
+    const run = async (files) => {
+      files = [...files].filter((f) => DOC_TYPES.test(f.name));
+      if (!files.length) { toast("Choose PDF, Word, Excel, PowerPoint or image files.", "error"); return; }
+      const { owner, repo, token } = ghSettings();
+      if (!owner || !repo || !token) { toast("Add your GitHub details in Settings first.", "error"); location.hash = "#/admin"; return; }
+      QU.cat = cat.value.trim();
+      const L = S.content.library = { news: [], documents: [], vision: [], ...libraryData() };
+      const list = L[kind] = (L[kind] || []).slice();
+      let done = 0;
+      for (const f of files) {
+        status.textContent = `Encrypting and uploading ${f.name} (${done + 1} of ${files.length})…`;
+        try {
+          const meta = await uploadEncrypted(f, kind === "vision" ? "docs/bihar-vision" : "docs/library");
+          list.push({ title: docTitle(f.name), date: today(), summary: "", ...(kind === "vision" ? { section } : { category: QU.cat }), ...meta });
+          done++;
+        } catch (e) { toast(`${f.name}: upload failed — ${e.message}`, "error"); }
+      }
+      if (!done) { status.textContent = "Nothing was uploaded."; return; }
+      markDirty();
+      status.textContent = `${done} file${done > 1 ? "s" : ""} uploaded. Publishing the list…`;
+      await publish();
+      rerender();
+    };
+    const input = h("input", { type: "file", multiple: true, hidden: true, accept: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg", onchange: (e) => { const f = [...e.target.files]; e.target.value = ""; run(f); } });
+    const drop = h("div", { class: "bk-drop qu-drop", tabindex: "0", role: "button", "aria-label": "Choose documents to upload",
+      onclick: () => input.click(), onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } },
+      ondragover: (e) => { e.preventDefault(); drop.classList.add("on"); }, ondragleave: () => drop.classList.remove("on"),
+      ondrop: (e) => { e.preventDefault(); drop.classList.remove("on"); run(e.dataTransfer.files); } },
+      h("b", null, "Drop documents here, or tap to choose"), h("br"), h("span", { class: "muted" }, "PDF, Word, Excel, PowerPoint or images, up to 20 MB each"));
+    return h("section", { class: "tax-card qu noprint" },
+      h("h2", null, "⬆ Upload documents (admin)"),
+      kind === "vision" ? null : h("label", { class: "field" }, h("span", null, "Category for these files"), cat),
+      drop, input, status,
+      h("p", { class: "muted tax-note" }, "Each file is encrypted in this browser before upload, so only people with the site password can open it. It is listed with its file name as the title and today's date, and the site is published straight away. Use ✎ Edit afterwards to change the title or add a summary."));
+  }
+  const QU = { cat: "" };
 
   function viewLibrary() {
     const L = libraryData(), tab = LIB.tab === "documents" ? "documents" : "news", key = tab === "news" ? "source" : "category";
     const items = byDate(L[tab] || []);
     const cats = [...new Set(items.map((x) => x[key]).filter(Boolean))].sort();
     const q = LIB.q.toLowerCase();
-    const shown = items.filter((x) => (!LIB.cat || x[key] === LIB.cat) && (!q || JSON.stringify(x).toLowerCase().includes(q)));
+    const shown = items.filter((x) => (!LIB.cat || x[key] === LIB.cat) && (!q || `${x.title} ${x.summary || ""} ${x[key] || ""} ${x.date || ""}`.toLowerCase().includes(q)));
     const dmu = byDate((L.documents || []).filter((x) => x.category === "Daily Market Update"))[0];
     const editKey = (i) => `lib:${tab}:${i}`;
     const item = (x) => {
@@ -677,7 +755,7 @@
         h("b", null, tab === "news" && isUrl(x.link) ? h("a", { href: x.link, target: "_blank", rel: "noopener" }, x.title) : x.title),
         h("div", { class: "muted" }, [x.date, x[key]].filter(Boolean).join(" · ")),
         x.summary ? h("p", null, x.summary) : null,
-        tab === "documents" ? fileLink(x.file) : null);
+        tab === "documents" ? fileLink(x) : null);
       return editable(editKey(i), () => libItemForm(tab, x, i), node, "Edit");
     };
     return h("div", { class: "library" },
@@ -687,8 +765,9 @@
           t === "news" ? `News (${(L.news || []).length})` : `Documents (${(L.documents || []).length})`))),
       tab === "documents" ? h("section", { class: "tax-card lib-dmu" },
         h("h2", null, "Daily Market Update"),
-        dmu ? h("div", null, h("b", null, dmu.title), h("div", { class: "muted" }, dmu.date), fileLink(dmu.file, "Open PDF"))
+        dmu ? h("div", null, h("b", null, dmu.title), h("div", { class: "muted" }, dmu.date), fileLink(dmu, "Open PDF"))
           : h("p", { class: "muted" }, "The Daily Market Update appears here on market days.")) : null,
+      tab === "documents" ? quickUpload("documents") : null,
       h("section", { class: "tax-card" },
         h("div", { class: "tax-grid noprint" },
           h("label", { class: "field" }, h("span", null, "Search"), h("input", { type: "search", value: LIB.q, placeholder: "Search…", oninput: (e) => { LIB.q = e.target.value; const pos = e.target.selectionStart; rerender(); const n = $(".library input[type=search]"); n?.focus(); n?.setSelectionRange(pos, pos); } })),
@@ -710,9 +789,10 @@
           docs.length ? docs.map((x) => {
             const i = L.vision.indexOf(x);
             return editable(`lib:vision:${i}`, () => libItemForm("vision", x, i),
-              h("div", { class: "lib-item" }, h("b", null, x.title), h("div", { class: "muted" }, x.date || ""), x.summary ? h("p", null, x.summary) : null, fileLink(x.file, "Open document")), "Edit");
+              h("div", { class: "lib-item" }, h("b", null, x.title), h("div", { class: "muted" }, x.date || ""), x.summary ? h("p", null, x.summary) : null, fileLink(x, "Open document")), "Edit");
           }) : h("p", { class: "missing" }, "Documents will be added here."),
-          ADMIN ? (S.editing === `lib:vision:new:${id}` ? libItemForm("vision", { section: id }, -1) : h("button", { class: "btn small", type: "button", onclick: () => { S.editing = `lib:vision:new:${id}`; rerender(); } }, `+ Add to ${title}`)) : null);
+          ADMIN ? (S.editing === `lib:vision:new:${id}` ? libItemForm("vision", { section: id }, -1) : h("button", { class: "btn small", type: "button", onclick: () => { S.editing = `lib:vision:new:${id}`; rerender(); } }, `+ Add to ${title}`)) : null,
+          ADMIN && S.editing === `lib:vision:quick:${id}` ? quickUpload("vision", id) : ADMIN ? h("button", { class: "btn small", type: "button", onclick: () => { S.editing = `lib:vision:quick:${id}`; rerender(); } }, "⬆ Upload files here") : null);
       }));
   }
 
@@ -720,20 +800,19 @@
     x = x || {};
     const today = new Date().toISOString().slice(0, 10);
     const fileField = kind === "news" ? "link" : "file";
+    const META = ["key", "iv", "mime", "name", "size"];
+    const hidden = META.map((k) => h("input", { type: "hidden", name: k, value: x[k] || "" }));
     const upload = h("input", { type: "file", accept: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg", hidden: true, onchange: async (e) => {
       const f = e.target.files[0]; e.target.value = "";
       if (!f) return;
-      if (f.size > 20 * 1024 * 1024) { toast("Files up to 20 MB can be uploaded.", "error"); return; }
-      if (!confirm(`Upload ${f.name}? Files uploaded here are public on GitHub — anyone with the link can open them.`)) return;
-      const folder = kind === "vision" ? "docs/bihar-vision" : "docs/library";
-      const path = `${folder}/${today}-${f.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "")}`;
       const fm = e.target.closest("form");
       try {
-        toast(`Uploading ${f.name}…`);
-        await ghPutBytes(path, new Uint8Array(await f.arrayBuffer()), `Add ${path}`);
-        fm.elements[fileField].value = path;
-        if (!fm.elements.title.value) fm.elements.title.value = f.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
-        toast("✓ Uploaded. Save, then Publish to list it on the site.");
+        toast(`Encrypting and uploading ${f.name}…`);
+        const meta = await uploadEncrypted(f, kind === "vision" ? "docs/bihar-vision" : "docs/library");
+        fm.elements[fileField].value = meta.file;
+        META.forEach((k) => { fm.elements[k].value = meta[k]; });
+        if (!fm.elements.title.value) fm.elements.title.value = docTitle(f.name);
+        toast("✓ Uploaded (encrypted). Save, then Publish to list it on the site.");
       } catch (err) { toast(`Upload failed — ${err.message}`, "error"); }
     } });
     const fields = [
@@ -743,17 +822,18 @@
       kind === "documents" ? field("Category (e.g. Tax, Daily Market Update)", "category", x.category, { hint: "Use “Daily Market Update” for the daily PDF — the newest one is shown at the top." }) : null,
       kind === "vision" ? h("label", { class: "field" }, h("span", null, "Section"), h("select", { name: "section" }, VISION_SECTIONS.map(([id, t]) => h("option", { value: id, selected: x.section === id || null }, t)))) : null,
       field("Summary (optional)", "summary", x.summary, { rows: 3 }),
-      field(kind === "news" ? "Link to the original article" : "File — link, or upload below", fileField, x[fileField], { hint: kind === "news" ? "Only real, verified news, linked to the source." : "A web link (https://…) or a file uploaded with the button below." }),
+      field(kind === "news" ? "Link to the original article" : "File — link, or upload below", fileField, x[fileField], { hint: kind === "news" ? "Only real, verified news, linked to the source." : "A web link (https://…), or upload a file with the button below — it is encrypted so only readers with the site password can open it." }),
     ];
-    const extra = kind === "news" ? [] : [upload, h("button", { class: "btn", type: "button", onclick: () => upload.click() }, "⬆ Upload file")];
+    const extra = kind === "news" ? [] : [...hidden, upload, h("button", { class: "btn", type: "button", onclick: () => upload.click() }, "⬆ Upload file")];
     return form(index < 0 ? (kind === "news" ? "Add news item" : "Add document") : "Edit", fields, {
       extra,
       onSave: (d) => {
         if (!d.title.trim()) { toast("A title is needed.", "error"); return false; }
         if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date.trim())) { toast("Date must look like 2026-10-25.", "error"); return false; }
         if (d[fileField] && !isUrl(d[fileField])) { toast("The link must start with https:// (or be an uploaded file).", "error"); return false; }
+        if (d.file !== x.file && d.file && !/\.enc$/.test(d.file)) META.forEach((k) => { d[k] = ""; });   // a new plain link drops the old key
         const L = S.content.library = { news: [], documents: [], vision: [], ...libraryData() };
-        const rec = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, String(v).trim()]));
+        const rec = Object.fromEntries(Object.entries(d).map(([k, v]) => [k, String(v).trim()]).filter(([k, v]) => v || !META.includes(k)));
         const list = L[kind] = (L[kind] || []).slice();
         if (index < 0) list.push(rec); else list[index] = rec;
       },
@@ -1470,7 +1550,8 @@
     },
     list_documents({ query, kind }) {
       const L = libraryData(), q = String(query || "").toLowerCase();
-      const pick = (a, k) => byDate(a || []).filter((x) => !q || JSON.stringify(x).toLowerCase().includes(q)).slice(0, 15).map((x) => ({ ...x, kind: k, ...(x.section ? { section: (VISION_SECTIONS.find(([id]) => id === x.section) || [])[1] } : {}) }));
+      const pick = (a, k) => byDate(a || []).filter((x) => !q || `${x.title} ${x.summary || ""} ${x.category || ""} ${x.source || ""}`.toLowerCase().includes(q)).slice(0, 15)
+        .map(({ key, iv, mime, size, name, file, ...x }) => ({ ...x, kind: k, ...(key ? { file: "protected document — open it from the Documents page" } : file ? { file } : {}), ...(x.section ? { section: (VISION_SECTIONS.find(([id]) => id === x.section) || [])[1] } : {}) }));
       const out = {};
       if (!kind || kind === "news") out.news = pick(L.news, "news");
       if (!kind || kind === "documents") out.documents = pick(L.documents, "document");
