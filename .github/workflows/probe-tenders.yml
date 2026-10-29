@@ -45,6 +45,9 @@ jobs:
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
           B=https://eproc2.bihar.gov.in/EPSV2Web
           curl -sS -L -m 90 --cacert chain/bundle.pem -A "$UA" -c chain/cookies.txt -D probe/listing.headers -o probe/listing.html "$B/openarea/tenderListingPage.action" -w "%{http_code} %{size_download} %{url_effective}\n" | tee probe/listing.status || true
+          for f in tenderModule/openareaTenderListController.js tenderModule/services.js utility/utility.js; do
+            curl -sS -L -m 60 --cacert chain/bundle.pem -A "$UA" -b chain/cookies.txt -o "probe/$(basename $f)" "$B/js/$f?version=15.1.241" -w "%{http_code} %{size_download} $f\n" | tee -a probe/js.status || true
+          done
           ls -la probe
       - name: Commit
         run: |
