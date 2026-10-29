@@ -1,0 +1,3 @@
+subject=C=IN, ST=Bihar, O=BIHAR STATE ELECTRONICS DEVELOPMENT CORPORATION LIMITED, CN=eproc2.bihar.gov.in
+issuer=C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication CA OV R36
+issuer url: http://crt.sectigo.com/SectigoPublicServerAuthenticationCAOVR36.crt
