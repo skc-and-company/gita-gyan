@@ -1,0 +1,77 @@
+# Rebuilds data/tenders.json (Bihar Tenders page) from the Bihar eProcurement portal and
+# commits it to this branch. Runs when this workflow or scripts/build_tenders.py is pushed here.
+name: Build tenders data
+
+on:
+  push:
+    branches: [claude/bihar-tenders]
+    paths: [.github/workflows/build-tenders.yml, scripts/build_tenders.py]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-tenders
+  cancel-in-progress: false
+
+jobs:
+  tenders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install packages
+        run: pip install requests
+
+      # The portal serves only its own certificate, without the intermediate. Fetch the missing
+      # issuer(s) from the certificate's AIA "CA Issuers" URL and verify against system roots
+      # plus those intermediates — certificate verification stays on.
+      - name: Complete the portal's certificate chain
+        run: |
+          mkdir -p chain
+          H=eproc2.bihar.gov.in
+          openssl s_client -connect $H:443 -servername $H -showcerts </dev/null 2>/dev/null \
+            | awk '/BEGIN CERT/{n++} n==1{print} /END CERT/&&n==1{exit}' > chain/cert0.pem
+          cp /etc/ssl/certs/ca-certificates.crt chain/bundle.pem
+          cur=chain/cert0.pem
+          for i in 1 2 3; do
+            url=$(openssl x509 -in $cur -noout -ext authorityInfoAccess 2>/dev/null | sed -n 's/.*CA Issuers - URI:\(.*\)/\1/p' | head -1)
+            [ -n "$url" ] || break
+            curl -sS -L -m 30 -o chain/issuer$i.raw "$url"
+            openssl x509 -inform DER -in chain/issuer$i.raw -out chain/issuer$i.pem 2>/dev/null \
+              || openssl x509 -in chain/issuer$i.raw -out chain/issuer$i.pem
+            cat chain/issuer$i.pem >> chain/bundle.pem
+            cur=chain/issuer$i.pem
+            openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt chain/issuer$i.pem >/dev/null 2>&1 && break
+          done
+
+      - name: Restore detail cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: tender-details-${{ github.run_id }}
+          restore-keys: tender-details-
+
+      - name: Build tenders.json
+        run: python scripts/build_tenders.py --out data/tenders.json --prev data/tenders.json --ca chain/bundle.pem --cache .cache/tender-details.json
+
+      - name: Save detail cache
+        if: always() && hashFiles('.cache/tender-details.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: tender-details-${{ github.run_id }}
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/tenders.json
+          if git diff --cached --quiet; then echo "No change."; exit 0; fi
+          git commit -m "Refresh Bihar tenders ($(python -c 'import json;print(json.load(open("data/tenders.json"))["fetched_at"])'))"
+          git push origin HEAD:claude/bihar-tenders
