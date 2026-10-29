@@ -14,13 +14,14 @@ print("token found:", bool(tok), "orgId:", org and org.group(1))
 h = {"Content-Type": "application/json; charset=utf-8", "Accept": "application/json, text/plain, */*",
      "X-Requested-With": "XMLHttpRequest", "Referer": f"{B}/openarea/tenderListingPage.action"}
 if tok: h["Authorization"] = tok.group(1)
-calls = {
-    "tenders": ("/rest/openarea/getTenderList", {}),
-    "depts": (f"/rest/organization/loadAllDeptWithParent?orgId={org.group(1) if org else 0}", None),
-    "masters": ("/rest/master/showRfqCategoryRfqTypeProcCatBidPartList", None),
-    "combo": ("/rest/master/getMasterListForOpenareaTenderListing", None),
-}
-for name, (path, body) in calls.items():
-    r = s.post(B + path, data=json.dumps(body) if body is not None else None, headers=h, timeout=120)
-    print(name, r.status_code, len(r.content), r.headers.get("content-type"), r.headers.get("errorMsg"))
-    open(f"probe/{name}.json", "wb").write(r.content)
+import time
+lst = s.post(B + "/rest/openarea/getTenderList", data="{}", headers=h, timeout=120).json()
+ids = [142063, 139951, 139315] + [t["currenttenderid"] for t in lst[:3]] + [t["currenttenderid"] for t in lst[400:402]]
+out = {}
+for tid in ids:
+    r = s.post(f"{B}/rest/quotation/previewTenderByTenderId?tenderId={tid}", headers=h, timeout=60)
+    print("preview", tid, r.status_code, len(r.content))
+    try: out[tid] = r.json()
+    except Exception: out[tid] = r.text[:2000]
+    time.sleep(1)
+json.dump(out, open("probe/previews.json", "w"), ensure_ascii=False, indent=1)
