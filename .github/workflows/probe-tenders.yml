@@ -6,7 +6,7 @@ name: Probe tenders portal
 on:
   push:
     branches: [claude/bihar-tenders]
-    paths: [.github/workflows/probe-tenders.yml]
+    paths: [.github/workflows/probe-tenders.yml, scripts/probe_tenders_api.py]
 
 permissions:
   contents: write
@@ -40,14 +40,10 @@ jobs:
             cur=chain/issuer$i.pem
             openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt chain/issuer$i.pem >/dev/null 2>&1 && break
           done
-      - name: Fetch listing
+      - name: Call the API
         run: |
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
-          B=https://eproc2.bihar.gov.in/EPSV2Web
-          curl -sS -L -m 90 --cacert chain/bundle.pem -A "$UA" -c chain/cookies.txt -D probe/listing.headers -o probe/listing.html "$B/openarea/tenderListingPage.action" -w "%{http_code} %{size_download} %{url_effective}\n" | tee probe/listing.status || true
-          for f in tenderModule/openareaTenderListController.js tenderModule/services.js utility/utility.js; do
-            curl -sS -L -m 60 --cacert chain/bundle.pem -A "$UA" -b chain/cookies.txt -o "probe/$(basename $f)" "$B/js/$f?version=15.1.241" -w "%{http_code} %{size_download} $f\n" | tee -a probe/js.status || true
-          done
+          pip install -q requests
+          python scripts/probe_tenders_api.py chain/bundle.pem | tee probe/api.status
           ls -la probe
       - name: Commit
         run: |
