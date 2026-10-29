@@ -17,17 +17,37 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+      # The portal serves only its own certificate, without the intermediate.
+      # Fetch the missing issuer(s) from the certificate's AIA "CA Issuers" URL
+      # and verify against system roots + those intermediates (verification stays on).
+      - name: Complete the certificate chain
+        run: |
+          mkdir -p probe chain
+          H=eproc2.bihar.gov.in
+          openssl s_client -connect $H:443 -servername $H -showcerts </dev/null 2>/dev/null \
+            | awk '/BEGIN CERT/{n++} n==1{print} /END CERT/&&n==1{exit}' > chain/cert0.pem
+          cp /etc/ssl/certs/ca-certificates.crt chain/bundle.pem
+          cur=chain/cert0.pem
+          for i in 1 2 3; do
+            openssl x509 -in $cur -noout -subject -issuer | tee -a probe/chain.txt
+            url=$(openssl x509 -in $cur -noout -ext authorityInfoAccess 2>/dev/null | sed -n 's/.*CA Issuers - URI:\(.*\)/\1/p' | head -1)
+            [ -n "$url" ] || break
+            echo "issuer url: $url" | tee -a probe/chain.txt
+            curl -sS -L -m 30 -o chain/issuer$i.raw "$url" || break
+            openssl x509 -inform DER -in chain/issuer$i.raw -out chain/issuer$i.pem 2>/dev/null \
+              || openssl x509 -in chain/issuer$i.raw -out chain/issuer$i.pem || break
+            cat chain/issuer$i.pem >> chain/bundle.pem
+            cur=chain/issuer$i.pem
+            openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt chain/issuer$i.pem >/dev/null 2>&1 && break
+          done
       - name: Fetch listing
         run: |
-          mkdir -p probe
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
           B=https://eproc2.bihar.gov.in/EPSV2Web
-          curl -sS -L -m 60 -A "$UA" -c probe/cookies.txt -D probe/listing.headers -o probe/listing.html "$B/openarea/tenderListingPage.action" -w "%{http_code} %{size_download} %{url_effective}\n" | tee probe/listing.status || true
-          curl -sS -L -m 60 -A "$UA" -b probe/cookies.txt -D probe/home.headers -o probe/home.html "$B/" -w "%{http_code} %{size_download} %{url_effective}\n" | tee probe/home.status || true
+          curl -sS -L -m 90 --cacert chain/bundle.pem -A "$UA" -c chain/cookies.txt -D probe/listing.headers -o probe/listing.html "$B/openarea/tenderListingPage.action" -w "%{http_code} %{size_download} %{url_effective}\n" | tee probe/listing.status || true
           ls -la probe
       - name: Commit
         run: |
-          rm -f probe/cookies.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add probe
