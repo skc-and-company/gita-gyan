@@ -6,6 +6,7 @@ on:
   push:
     branches: [claude/bihar-tenders]
     paths: [.github/workflows/build-tenders.yml, scripts/build_tenders.py]
+  workflow_dispatch:   # also runnable from the Actions tab once this workflow is on main
 
 permissions:
   contents: write
