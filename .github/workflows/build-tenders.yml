@@ -1,11 +1,12 @@
 # Rebuilds data/tenders.json (Bihar Tenders page) from the Bihar eProcurement portal and
-# commits it to this branch. Runs when this workflow or scripts/build_tenders.py is pushed here.
+# commits it to this branch. Runs when this workflow or scripts/build_tenders.py is pushed here,
+# or when scripts/tenders-refresh.txt is updated (a refresh request: it holds the request time).
 name: Build tenders data
 
 on:
   push:
     branches: [claude/bihar-tenders]
-    paths: [.github/workflows/build-tenders.yml, scripts/build_tenders.py]
+    paths: [.github/workflows/build-tenders.yml, scripts/build_tenders.py, scripts/tenders-refresh.txt]
   workflow_dispatch:   # also runnable from the Actions tab once this workflow is on main
 
 permissions:
